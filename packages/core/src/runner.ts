@@ -106,6 +106,12 @@ export async function runStage(
       `${workspaceDir}:/home/agent/workspace`,
       "-w",
       "/home/agent/workspace",
+      "-e",
+      "GIT_CONFIG_COUNT=1",
+      "-e",
+      "GIT_CONFIG_KEY_0=safe.directory",
+      "-e",
+      "GIT_CONFIG_VALUE_0=*",
     ];
 
     const home = process.env.HOME || process.env.USERPROFILE || "";
