@@ -39,4 +39,3 @@ jobs:
           token: ${{ secrets.NPM_TOKEN }}
           package: packages/core
           access: public
-          provenance: true

@@ -15,7 +15,7 @@ RUN wget -qO /tmp/ms.deb https://packages.microsoft.com/config/debian/12/package
   && dpkg -i /tmp/ms.deb \
   && rm /tmp/ms.deb \
   && apt-get update \
-  && apt-get install -y dotnet-sdk-9.0 \
+  && apt-get install -y dotnet-sdk-10.0 \
   && rm -rf /var/lib/apt/lists/*
 
 # GitHub CLI
