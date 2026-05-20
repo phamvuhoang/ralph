@@ -10,4 +10,4 @@
 
 </inputs>
 
-!`cat ralph/prompt.md`
+@include:prompt.md

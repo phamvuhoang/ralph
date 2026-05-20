@@ -13,7 +13,7 @@ import { join, posix } from "node:path";
 
 import type { Stage } from "./stages.js";
 
-const IMAGE_REF =
+export const IMAGE_REF =
   process.env.RALPH_IMAGE ??
   process.env.RALPH_IMAGE_TAG ?? // legacy
   "docker.io/daonhan/ralph-sandbox:latest";

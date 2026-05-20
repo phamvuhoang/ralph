@@ -5,22 +5,24 @@ Ralph drives [Claude Code](https://docs.anthropic.com/claude/docs/claude-code) a
 - **[`@daonhan/ralph-core`](./packages/core)** — library: iteration loop, docker runner, template renderer, stage registry. Importable from any Node project.
 - **[`@daonhan/ralph`](./apps/cli)** — CLI: exposes `ralph-afk` and `ralph-ghafk` bin entries. Depends on `@daonhan/ralph-core`.
 
-Two AFK entry points:
+Two AFK entry points (both installed globally after `npm i -g @daonhan/ralph`):
 
-- **`afk.sh`** — plan/PRD-driven loop. Hand it a plan + PRD string; iterates until the agent emits `NO MORE TASKS`.
-- **`ghafk.sh`** — GitHub-issue-driven loop. Pulls open issues with `gh issue list` and lets the agent pick the next AFK task.
+- **`ralph-afk`** — plan/PRD-driven loop. Hand it a plan + PRD string; iterates until the agent emits `NO MORE TASKS`.
+- **`ralph-ghafk`** — GitHub-issue-driven loop. Pulls open issues with `gh issue list` and lets the agent pick the next AFK task.
 
-Agent playbooks: [`prompt.md`](./prompt.md) (for `afk`) and [`ghprompt.md`](./ghprompt.md) (for `ghafk`). Reviewer instructions: [`packages/core/templates/review.md`](./packages/core/templates/review.md).
+Convenience shims live at [`apps/cli/scripts/afk.sh`](./apps/cli/scripts/afk.sh) and [`apps/cli/scripts/ghafk.sh`](./apps/cli/scripts/ghafk.sh) — thin wrappers that fall back to `npx @daonhan/ralph` if not installed.
+
+Agent playbooks: [`packages/core/templates/prompt.md`](./packages/core/templates/prompt.md) (for `ralph-afk`) and [`packages/core/templates/ghprompt.md`](./packages/core/templates/ghprompt.md) (for `ralph-ghafk`). Reviewer instructions: [`packages/core/templates/review.md`](./packages/core/templates/review.md). All three ship inside `@daonhan/ralph-core`.
 
 ---
 
 ## Architecture (AFK loops)
 
 ```
-afk.sh / ghafk.sh                    (shell shim — sets RALPH_WORKSPACE/RALPH_DOCKER_CONTEXT, execs CLI)
+ralph-afk / ralph-ghafk               (bin entries from @daonhan/ralph, on PATH after `npm i -g`)
    │
    ▼
-@daonhan/ralph (CLI, apps/cli)        bin: ralph-afk, ralph-ghafk
+@daonhan/ralph (CLI, apps/cli)        bin: ralph-afk, ralph-ghafk; scripts: afk.sh, ghafk.sh shims
    │ imports
    ▼
 @daonhan/ralph-core (packages/core)
@@ -39,7 +41,7 @@ Each iteration runs the stage chain `[implementer, reviewer]`. The implementer i
 Prompt templates use two expansion forms:
 
 - `` !`<shell cmd>` `` — executed on the host before each iteration; output replaces the tag.
-- `{{ INPUTS }}` — replaced with the entry script's input arg (plan/PRD string for `afk.sh`; empty for `ghafk.sh`).
+- `{{ INPUTS }}` — replaced with the entry CLI's input arg (plan/PRD string for `ralph-afk`; empty for `ralph-ghafk`).
 
 ---
 
@@ -51,23 +53,24 @@ ralph/
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json           shared TS compiler options
 ├── .npmrc                       link-workspace-packages, prefer-workspace-packages
+├── .dockerignore                shrinks build context (consumed at repo root)
 ├── apps/
 │   └── cli/                     @daonhan/ralph
 │       ├── package.json
-│       └── bin/
-│           ├── ralph-afk.js
-│           └── ralph-ghafk.js
+│       ├── bin/
+│       │   ├── ralph-afk.js
+│       │   └── ralph-ghafk.js
+│       └── scripts/             optional bash shims (ship in npm tarball)
+│           ├── afk.sh
+│           └── ghafk.sh
 ├── packages/
 │   └── core/                    @daonhan/ralph-core
 │       ├── package.json
 │       ├── tsconfig.json
+│       ├── Dockerfile           builds ralph-sandbox image (Node + .NET + gh + claude)
 │       ├── src/                 main.ts, gh-main.ts, loop.ts, runner.ts, render.ts, stages.ts, index.ts
 │       └── templates/           afk.md, ghafk.md, review.md
-├── Dockerfile                   builds ralph-sandbox image (Node + .NET + gh + claude)
-├── prompt.md                    agent playbook for afk
-├── ghprompt.md                  agent playbook for ghafk
-├── afk.sh                       shim for plan/PRD loop
-└── ghafk.sh                     shim for GitHub-issue loop
+└── (playbooks live in packages/core/templates/ alongside the prompt templates)
 ```
 
 At runtime, the host workspace gets a `.ralph-tmp/` directory containing the per-iteration prompt files and `logs/*.ndjson`. This directory is gitignored.
@@ -80,7 +83,7 @@ At runtime, the host workspace gets a `.ralph-tmp/` directory containing the per
 - **Docker** (Docker Desktop with WSL2 backend, or Docker Engine in WSL). The orchestrator shells out to `docker build` / `docker run`.
 - **Node.js 20+** on the host (Linux side under WSL).
 - **pnpm 9+** (for monorepo development). End users consuming the published package can use `npm`, `pnpm`, or `yarn`.
-- **`gh`** authenticated on the host (only `ghafk.sh`): `gh auth login` once.
+- **`gh`** authenticated on the host (only `ralph-ghafk`): `gh auth login` once.
 - **Claude Code** authentication. See "First-run setup" below.
 
 ### Windows + WSL: which `~` does Ralph use?
@@ -90,7 +93,7 @@ The shims execute under WSL, so `runner.ts` resolves `$HOME` to the **WSL Linux 
 | Where you typed it | `~` resolves to | Used by |
 | --- | --- | --- |
 | PowerShell | `C:\Users\<name>` | `claude.exe` host installer — **ignored by Ralph** |
-| WSL bash | `/home/<linuxname>` | **Ralph (afk.sh / ghafk.sh) — canonical credential store** |
+| WSL bash | `/home/<linuxname>` | **Ralph (ralph-afk / ralph-ghafk) — canonical credential store** |
 
 Consequences:
 
@@ -106,7 +109,7 @@ Consequences:
   ```
 - To launch from PowerShell, always go through `wsl bash`:
   ```powershell
-  wsl bash ./ralph/afk.sh "<plan-and-prd>" 3
+  wsl bash -c 'ralph-afk "<plan-and-prd>" 3'
   ```
 
 ---
@@ -131,7 +134,7 @@ Build locally (offline, custom changes):
 
 ```bash
 cd ralph
-docker build -t docker.io/daonhan/ralph-sandbox:latest .
+docker build -t docker.io/daonhan/ralph-sandbox:latest -f packages/core/Dockerfile .
 ```
 
 The image bundles: Node 22, .NET SDK 9, `gh`, `jq`, `git`, the Claude Code CLI.
@@ -166,7 +169,7 @@ Inside the container:
 
 ```bash
 claude /login         # browser flow
-gh auth login         # only needed for ghafk.sh
+gh auth login         # only needed for ralph-ghafk
 exit
 ```
 
@@ -183,13 +186,20 @@ Re-run `claude /login` (or `gh auth login`) inside the container. Bind-mounted f
 
 ---
 
-## `afk.sh` — plan/PRD loop
+## `ralph-afk` — plan/PRD loop
 
 ### Usage
 
 ```bash
-./ralph/afk.sh "<plan-and-prd>" <iterations>
+ralph-afk "<plan-and-prd>" <iterations>
 ```
+
+(Or via the shim: `./node_modules/@daonhan/ralph/scripts/afk.sh "<plan-and-prd>" <iterations>`.)
+
+Also supports:
+
+- `ralph-afk --help` (or `-h`) — usage, flags, env vars.
+- `ralph-afk --print-config` — print resolved workspace / docker context / image and exit. Use for diagnostics before launching a real loop.
 
 - `<plan-and-prd>` — a single string forwarded verbatim as `{{ INPUTS }}` in the template. Conventionally paths to plan and PRD files.
 - `<iterations>` — max loop iterations. Exits early if implementer emits the sentinel.
@@ -197,13 +207,13 @@ Re-run `claude /login` (or `gh auth login`) inside the container. Bind-mounted f
 ### Example
 
 ```bash
-./ralph/afk.sh "./docs/plans/inventory.md ./docs/prd/PRD-Inventory.md" 10
+ralph-afk "./docs/plans/inventory.md ./docs/prd/PRD-Inventory.md" 10
 ```
 
 From PowerShell on Windows:
 
 ```powershell
-wsl bash ./ralph/afk.sh "./docs/plans/inventory.md ./docs/prd/PRD-Inventory.md" 10
+wsl bash -c "ralph-afk './docs/plans/inventory.md ./docs/prd/PRD-Inventory.md' 10"
 ```
 
 ### What happens per iteration
@@ -211,19 +221,19 @@ wsl bash ./ralph/afk.sh "./docs/plans/inventory.md ./docs/prd/PRD-Inventory.md" 
 1. **Render template** `packages/core/templates/afk.md`:
    - `` !`git log -n 5 …` `` → recent commits
    - `{{ INPUTS }}` → the plan/PRD string
-   - `` !`cat ralph/prompt.md` `` → the agent playbook
+   - `@include:prompt.md` → the agent playbook (inlined by the Node renderer, no shell)
 2. **Implementer stage** (gate) — `docker run ralph-sandbox claude …` with the rendered prompt streamed in via a tempfile under `.ralph-tmp/` (avoids Windows 32 KB argv limit). Assistant text is rendered live; final `result` is captured.
 3. **Sentinel check** — if `result` contains `<promise>NO MORE TASKS</promise>`, print `Ralph complete after <N> iterations.` and exit 0.
 4. **Reviewer stage** — runs `packages/core/templates/review.md`. Inspects HEAD diff. Either commits a `fix(review): …` patch or emits `<review>OK</review>` / `<review>SKIP</review>` and stops.
 
 ---
 
-## `ghafk.sh` — GitHub-issue loop
+## `ralph-ghafk` — GitHub-issue loop
 
 ### Usage
 
 ```bash
-./ralph/ghafk.sh <iterations>
+ralph-ghafk <iterations>
 ```
 
 No plan/PRD arg — context comes from open GitHub issues.
@@ -233,39 +243,42 @@ No plan/PRD arg — context comes from open GitHub issues.
 1. **Render template** `packages/core/templates/ghafk.md`:
    - `` !`git log -n 5 …` `` → recent commits
    - `` !`gh issue list --state open --json number,title,body,comments` `` → open issues
-   - `` !`cat ralph/ghprompt.md` `` → the agent playbook
+   - `@include:ghprompt.md` → the agent playbook (inlined by the Node renderer, no shell)
 2. **ghafk-implementer stage** (gate) — agent picks one open AFK issue, implements it, commits, closes / comments on the issue.
-3. **Sentinel check** — same as `afk.sh`.
-4. **Reviewer stage** — same as `afk.sh`.
+3. **Sentinel check** — same as `ralph-afk`.
+4. **Reviewer stage** — same as `ralph-afk`.
 
 ---
 
 ## Consuming the package in another repo
 
-The shims expect `@daonhan/ralph` to be resolvable via `npx`. Two install modes:
+### Global install (recommended — run from anywhere)
 
-### Install once (recommended)
+```bash
+npm i -g @daonhan/ralph
+```
+
+After install, both bins are on your `$PATH`:
+
+```bash
+cd /path/to/some/workspace
+ralph-afk "<plan-and-prd>" 5
+ralph-ghafk 5
+```
+
+The bundled Dockerfile (shipped inside `@daonhan/ralph-core`) is the default `RALPH_DOCKER_CONTEXT`, so the `docker build` fallback works even when you invoke from a workspace that has no `Dockerfile` of its own.
+
+### Per-repo install
 
 ```bash
 # in your workspace repo
 npm i -D @daonhan/ralph         # or: pnpm add -D @daonhan/ralph
-```
-
-Then drop `afk.sh` / `ghafk.sh` into a `ralph/` subdirectory alongside `Dockerfile`, `prompt.md`, `ghprompt.md`. The shims do the rest:
-
-```bash
-./ralph/afk.sh "<plan-and-prd>" 5
+./node_modules/.bin/ralph-afk "<plan-and-prd>" 5
 ```
 
 ### Bootstrap on demand (no install)
 
-The shims fall back to `npx -y @daonhan/ralph` if no local install is found. Slower first run, no `package.json` required.
-
-### Directly via npx
-
 ```bash
-RALPH_WORKSPACE="$(pwd)" \
-RALPH_DOCKER_CONTEXT="$(pwd)/ralph" \
 npx -y @daonhan/ralph ralph-afk "<plan-and-prd>" 5
 ```
 
@@ -274,7 +287,7 @@ npx -y @daonhan/ralph ralph-afk "<plan-and-prd>" 5
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `RALPH_WORKSPACE` | `process.cwd()` | Host path bind-mounted at `/home/agent/workspace`. Also where `.ralph-tmp/` is written. |
-| `RALPH_DOCKER_CONTEXT` | `$RALPH_WORKSPACE` | Build context for the `docker build` fallback. Only consulted if `docker pull` fails. Must contain `Dockerfile`. |
+| `RALPH_DOCKER_CONTEXT` | bundled `@daonhan/ralph-core` dir | Build context for the `docker build` fallback. Only consulted if `docker pull` fails. Must contain `Dockerfile`. Defaults to the npm-installed core dir, which ships `Dockerfile`. |
 | `RALPH_IMAGE` | `docker.io/daonhan/ralph-sandbox:latest` | Full image reference. `ensureImage` does `inspect` → `pull` → `build` (fallback). |
 | `RALPH_IMAGE_TAG` | _(legacy)_ | Deprecated alias for `RALPH_IMAGE`. Honored if `RALPH_IMAGE` unset. |
 
@@ -306,6 +319,21 @@ npm i -D /tmp/daonhan-ralph-core-0.1.0.tgz /tmp/daonhan-ralph-0.1.0.tgz
 ./node_modules/.bin/ralph-afk           # → prints usage
 ```
 
+### Global install from local checkout (dev shortcut)
+
+`pnpm link --global` is brittle inside this workspace (pnpm 9 rewrites the dependent's manifest). Use the pack-then-install path instead:
+
+```bash
+pnpm -r build
+(cd packages/core && pnpm pack --pack-destination /tmp/ralph-packs)
+(cd apps/cli      && pnpm pack --pack-destination /tmp/ralph-packs)
+npm i -g /tmp/ralph-packs/daonhan-ralph-core-0.1.0.tgz \
+         /tmp/ralph-packs/daonhan-ralph-0.1.0.tgz
+ralph-afk          # → Usage: ralph-afk <plan-and-prd> <iterations>
+```
+
+Re-run after each source change. To uninstall: `npm uninstall -g @daonhan/ralph @daonhan/ralph-core`.
+
 ### Publish
 
 ```bash
@@ -323,14 +351,7 @@ Per-package publish (granular):
 
 ### Use a local checkout in another repo (no publish)
 
-```bash
-# from this repo
-(cd apps/cli && pnpm link --global)
-
-# from your test workspace
-pnpm link --global @daonhan/ralph
-./ralph/afk.sh "test" 1
-```
+Use the pack-then-install path above. It exposes `ralph-afk` / `ralph-ghafk` globally; no per-workspace step needed.
 
 ---
 
@@ -366,7 +387,7 @@ Set `RALPH_IMAGE=registry.example.com/my-image:tag` before invoking the shim, or
 
 ### Change feedback loops or task priority
 
-Edit `prompt.md` (and `ghprompt.md`) — the playbooks injected via `` !`cat ralph/prompt.md` ``.
+Edit `packages/core/templates/prompt.md` (and `ghprompt.md`) — the playbooks injected via `@include:prompt.md`.
 
 ---
 
@@ -383,7 +404,7 @@ Edit `prompt.md` (and `ghprompt.md`) — the playbooks injected via `` !`cat ral
 - **`@esbuild/win32-x64 package is present but this platform needs @esbuild/linux-x64`** — `node_modules/` installed from the wrong OS. Delete `node_modules/` + lockfile and reinstall under WSL.
 - **`Not logged in · Please run /login`** — Claude credentials missing inside the container. Run the interactive `docker run … claude /login` step from "First-run setup".
 - **`gh issue list` fails with `not a git repository`** — the workspace has no `.git`. The `ghafk.md` template uses `|| echo "[]"` fallback so the iteration still proceeds, but `gh` cannot detect the target repo. Initialize the repo, or push first.
-- **`MSB3248` during `dotnet build` / `dotnet test`** — virtiofs/9p quirk on Windows-mounted source. The agent retries automatically per the recipe in `prompt.md`; manual repro:
+- **`MSB3248` during `dotnet build` / `dotnet test`** — virtiofs/9p quirk on Windows-mounted source. The agent retries automatically per the recipe in `packages/core/templates/prompt.md`; manual repro:
   ```bash
   dotnet test <path-to-test-csproj> \
     -m:1 \
@@ -406,12 +427,12 @@ Edit `prompt.md` (and `ghprompt.md`) — the playbooks injected via `` !`cat ral
 
 | File / dir | Purpose |
 | --- | --- |
-| [`afk.sh`](./afk.sh) | Shim — plan/PRD loop. Sets `RALPH_WORKSPACE`/`RALPH_DOCKER_CONTEXT`, execs `npx @daonhan/ralph ralph-afk`. |
-| [`ghafk.sh`](./ghafk.sh) | Shim — GitHub-issue loop. Calls `ralph-ghafk`. |
-| [`prompt.md`](./prompt.md) | Agent playbook for `afk.sh`. |
-| [`ghprompt.md`](./ghprompt.md) | Agent playbook for `ghafk.sh`. |
-| [`Dockerfile`](./Dockerfile) | Builds `ralph-sandbox` image: Node 22 + .NET SDK 9 + `gh` + `claude`. |
-| [`.dockerignore`](./.dockerignore) | Shrinks build context. |
+| [`apps/cli/scripts/afk.sh`](./apps/cli/scripts/afk.sh) | Optional shim — plan/PRD loop. Falls back to `npx @daonhan/ralph ralph-afk`. Shipped in the npm tarball. |
+| [`apps/cli/scripts/ghafk.sh`](./apps/cli/scripts/ghafk.sh) | Optional shim — GitHub-issue loop. Calls `ralph-ghafk`. |
+| [`packages/core/templates/prompt.md`](./packages/core/templates/prompt.md) | Agent playbook for `ralph-afk`. Shipped in core tarball. |
+| [`packages/core/templates/ghprompt.md`](./packages/core/templates/ghprompt.md) | Agent playbook for `ralph-ghafk`. Shipped in core tarball. |
+| [`packages/core/Dockerfile`](./packages/core/Dockerfile) | Builds `ralph-sandbox` image: Node 22 + .NET SDK 9 + `gh` + `claude`. Shipped in `@daonhan/ralph-core` tarball. |
+| [`.dockerignore`](./.dockerignore) | Shrinks build context (consumed at repo root for CI builds). |
 | [`package.json`](./package.json) | Monorepo root (private). Shared devDeps + pnpm workspace scripts. |
 | [`pnpm-workspace.yaml`](./pnpm-workspace.yaml) | Declares `apps/*` and `packages/*` as workspace members. |
 | [`tsconfig.base.json`](./tsconfig.base.json) | Shared TS compiler options inherited by every package. |
@@ -424,6 +445,6 @@ Edit `prompt.md` (and `ghprompt.md`) — the playbooks injected via `` !`cat ral
 | [`.github/workflows/publish-image.yml`](./.github/workflows/publish-image.yml) | CI: build + push multi-arch `ralph-sandbox` to Docker Hub on `workflow_dispatch` or `image-v*` tag. |
 | [`packages/core/src/stages.ts`](./packages/core/src/stages.ts) | Stage registry — `implementer`, `ghafkImplementer`, `reviewer`. |
 | [`packages/core/src/index.ts`](./packages/core/src/index.ts) | Barrel re-export — `runAfk`, `runGhAfk`, `runLoop`, `STAGES`, `renderTemplate`, … |
-| [`packages/core/templates/afk.md`](./packages/core/templates/afk.md) | `afk.sh` prompt template. |
-| [`packages/core/templates/ghafk.md`](./packages/core/templates/ghafk.md) | `ghafk.sh` prompt template. |
+| [`packages/core/templates/afk.md`](./packages/core/templates/afk.md) | `ralph-afk` prompt template. |
+| [`packages/core/templates/ghafk.md`](./packages/core/templates/ghafk.md) | `ralph-ghafk` prompt template. |
 | [`packages/core/templates/review.md`](./packages/core/templates/review.md) | Reviewer prompt template. |

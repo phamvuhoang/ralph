@@ -10,4 +10,4 @@
 
 </issues>
 
-!`cat ralph/ghprompt.md`
+@include:ghprompt.md
