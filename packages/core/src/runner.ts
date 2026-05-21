@@ -19,7 +19,29 @@ export const IMAGE_REF =
   "docker.io/daonhan/ralph-sandbox:latest";
 const STDERR_TAIL_LINES = 40;
 const TOOL_INPUT_PREVIEW = 200;
-const TOOL_RESULT_PREVIEW = 400;
+const TOOL_RESULT_PREVIEW = 120;
+const TOOL_ERROR_PREVIEW = 400;
+
+/* ── TTY-gated styling ────────────────────────────────────────────────── */
+
+const USE_COLOR =
+  process.stderr.isTTY === true &&
+  process.env.NO_COLOR == null &&
+  process.env.TERM !== "dumb";
+
+const c = (code: string, s: string): string =>
+  USE_COLOR ? `\x1b[${code}m${s}\x1b[0m` : s;
+const dim = (s: string): string => c("2", s);
+const bold = (s: string): string => c("1", s);
+const cyan = (s: string): string => c("36", s);
+const green = (s: string): string => c("32", s);
+const red = (s: string): string => c("31", s);
+
+const SYM = USE_COLOR
+  ? { bullet: "●", cont: "⎿", check: "✓", cross: "✗", rule: "━" }
+  : { bullet: "*", cont: "  >", check: "ok", cross: "FAIL", rule: "=" };
+
+export { USE_COLOR, dim, bold, cyan, green, red, SYM };
 
 type AssistantBlock = {
   type: string;
@@ -78,13 +100,13 @@ export function ensureImage(buildContext?: string): void {
 
   if (hasLocal && !floating) return;
 
-  process.stderr.write(`[sandcastle] Pulling image ${IMAGE_REF}\n`);
+  process.stderr.write(`${dim("pulling")} ${IMAGE_REF}\n`);
   const pull = spawnSync("docker", ["pull", IMAGE_REF], { stdio: "inherit" });
   if (pull.status === 0) return;
 
   if (hasLocal) {
     process.stderr.write(
-      `[sandcastle] pull failed; using cached local copy of ${IMAGE_REF}\n`
+      `${dim("pull failed; using cached local copy of")} ${IMAGE_REF}\n`
     );
     return;
   }
@@ -103,7 +125,7 @@ export function ensureImage(buildContext?: string): void {
     );
   }
   process.stderr.write(
-    `[sandcastle] pull failed; building ${IMAGE_REF} from ${buildContext}\n`
+    `${dim("pull failed; building")} ${IMAGE_REF} ${dim("from")} ${buildContext}\n`
   );
   const build = spawnSync(
     "docker",
@@ -140,7 +162,7 @@ export async function runStage(
 
   writeFileSync(promptHostPath, renderedPrompt, "utf8");
 
-  process.stderr.write(`[sandcastle] log → ${logPath}\n`);
+  process.stderr.write(`${dim("log → " + logPath)}\n`);
 
   try {
     const args = [
@@ -199,6 +221,7 @@ export async function runStage(
 function streamDocker(args: string[], logPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const logFd = openSync(logPath, "a");
+    const toolMap = new Map<string, ToolTrack>();
 
     const child = spawn("docker", args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -219,7 +242,7 @@ function streamDocker(args: string[], logPath: string): Promise<string> {
       } catch {
         return;
       }
-      renderEvent(parsed);
+      renderEvent(parsed, toolMap);
       if (parsed.type === "result") {
         const r = (parsed as { result?: string }).result;
         if (typeof r === "string") finalResult = r;
@@ -230,7 +253,7 @@ function streamDocker(args: string[], logPath: string): Promise<string> {
     rlErr.on("line", (line) => {
       stderrTail.push(line);
       if (stderrTail.length > STDERR_TAIL_LINES) stderrTail.shift();
-      process.stderr.write(`[docker] ${line}\n`);
+      process.stderr.write(`${dim("docker  " + line)}\n`);
     });
 
     child.on("error", (err) => {
@@ -250,14 +273,21 @@ function streamDocker(args: string[], logPath: string): Promise<string> {
   });
 }
 
-function renderEvent(ev: StreamJson): void {
+type ToolTrack = { name: string; startedAt: number };
+
+function renderEvent(
+  ev: StreamJson,
+  toolMap: Map<string, ToolTrack>
+): void {
   switch (ev.type) {
     case "system": {
       const sub = (ev as { subtype?: string }).subtype;
       if (sub === "init") {
         const model = (ev as { model?: string }).model ?? "?";
         const cwd = (ev as { cwd?: string }).cwd ?? "?";
-        process.stderr.write(`[init] model=${model} cwd=${cwd}\n`);
+        process.stderr.write(
+          `${dim("───")} ${bold("init")} ${dim(`model=${model} cwd=${cwd}`)}\n`
+        );
       }
       return;
     }
@@ -267,14 +297,22 @@ function renderEvent(ev: StreamJson): void {
         [];
       for (const block of content) {
         if (block.type === "text" && typeof block.text === "string") {
-          process.stdout.write(block.text.replace(/\n/g, "\r\n") + "\r\n\n");
+          const lines = block.text.split("\n");
+          const formatted = lines
+            .map((l, idx) => (idx === 0 ? `${bold(cyan(SYM.bullet))} ${l}` : `  ${l}`))
+            .join("\r\n");
+          process.stdout.write(formatted + "\r\n\n");
         } else if (block.type === "thinking") {
-          // Thinking blocks are usually long; show one marker line, not full text.
-          process.stderr.write(`[thinking]\n`);
+          process.stderr.write(`${dim(SYM.bullet + " thinking…")}\n`);
         } else if (block.type === "tool_use") {
           const name = block.name ?? "?";
           const preview = previewInput(name, block.input);
-          process.stderr.write(`[tool] ${name} ${preview}\n`);
+          if (block.id) {
+            toolMap.set(block.id, { name, startedAt: Date.now() });
+          }
+          process.stderr.write(
+            `${cyan(SYM.bullet)} ${bold(name)} ${dim(preview)}\n`
+          );
         }
       }
       return;
@@ -285,10 +323,19 @@ function renderEvent(ev: StreamJson): void {
       for (const block of content) {
         if (block.type !== "tool_result") continue;
         const text = stringifyToolResult(block.content);
+        const tracked = block.tool_use_id
+          ? toolMap.get(block.tool_use_id)
+          : undefined;
+        const toolName = tracked?.name ?? "tool";
+        const elapsed = tracked
+          ? ` (${Date.now() - tracked.startedAt}ms)`
+          : "";
+        if (block.tool_use_id) toolMap.delete(block.tool_use_id);
+
         if (block.is_error) {
-          const snippet = text.slice(0, TOOL_RESULT_PREVIEW * 2);
+          const snippet = text.slice(0, TOOL_ERROR_PREVIEW);
           process.stderr.write(
-            `[tool:error] ${snippet}${text.length > snippet.length ? " …" : ""}\n`
+            `${dim(SYM.cont)} ${red(SYM.cross)} ${bold(toolName)}${red(" failed")}\n  ${red(snippet)}${text.length > snippet.length ? " …" : ""}\n`
           );
         } else {
           const snippet = text
@@ -296,7 +343,7 @@ function renderEvent(ev: StreamJson): void {
             .trim()
             .slice(0, TOOL_RESULT_PREVIEW);
           process.stderr.write(
-            `[tool:ok] ${snippet}${text.length > snippet.length ? " …" : ""}\n`
+            `${dim(SYM.cont)} ${green(SYM.check)} ${bold(toolName)}${dim(elapsed)} ${dim(snippet)}${text.length > snippet.length ? " …" : ""}\n`
           );
         }
       }
@@ -304,7 +351,7 @@ function renderEvent(ev: StreamJson): void {
     }
     case "result": {
       const isError = (ev as { is_error?: boolean }).is_error;
-      if (isError) process.stderr.write(`[result] is_error=true\n`);
+      if (isError) process.stderr.write(`${red(SYM.bullet + " result errored")}\n`);
       return;
     }
     default:
