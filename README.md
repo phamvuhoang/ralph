@@ -86,33 +86,35 @@ At runtime, the host workspace gets a `.ralph-tmp/` directory containing the per
 
 ### Supported shells / OS combinations
 
-| Where you invoke `ralph-afk` | Status | Notes |
-| --- | --- | --- |
-| Linux native (Ubuntu, etc.) | ✓ | `/bin/bash` used for shell tags. Confirmed via WSL Ubuntu. |
-| macOS native | ✓ | `/bin/bash` used. Identical to Linux path. |
-| Windows PowerShell / cmd | ✓ | Renderer probes `bash.exe`; falls back to `cmd.exe`. Use `npm i -g @daonhan/ralph` against native Node. |
-| Windows + WSL bash | ✓ | Install inside WSL with a user-local prefix (`npm config set prefix ~/.npm-global`) to avoid sudo. |
-| Windows + Git Bash | ✓ | Resolves shell to its own `bash.exe`. |
+| Where you invoke `ralph-afk` | Status | Notes                                                                                                   |
+| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| Linux native (Ubuntu, etc.)  | ✓      | `/bin/bash` used for shell tags. Confirmed via WSL Ubuntu.                                              |
+| macOS native                 | ✓      | `/bin/bash` used. Identical to Linux path.                                                              |
+| Windows PowerShell / cmd     | ✓      | Renderer probes `bash.exe`; falls back to `cmd.exe`. Use `npm i -g @daonhan/ralph` against native Node. |
+| Windows + WSL bash           | ✓      | Install inside WSL with a user-local prefix (`npm config set prefix ~/.npm-global`) to avoid sudo.      |
+| Windows + Git Bash           | ✓      | Resolves shell to its own `bash.exe`.                                                                   |
 
 ### Windows + WSL: credentials
 
 Credentials live on the **host** at `~/.claude` and `~/.config/gh` and get bind-mounted into the container. The path resolves per the shell that launches `ralph-afk`:
 
-| Launch from | `$HOME` is | Mounted into container |
-| --- | --- | --- |
-| Windows PowerShell / cmd | `C:\Users\<name>` | Yes, if `claude /login` was run inside a WSL/native shell on Windows or via the bootstrap container below |
-| WSL bash | `/home/<linuxname>` | Yes — canonical WSL credential store |
-| Linux / macOS | `/home/<name>` or `/Users/<name>` | Yes |
+| Launch from              | `$HOME` is                        | Mounted into container                                                                                    |
+| ------------------------ | --------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Windows PowerShell / cmd | `C:\Users\<name>`                 | Yes, if `claude /login` was run inside a WSL/native shell on Windows or via the bootstrap container below |
+| WSL bash                 | `/home/<linuxname>`               | Yes — canonical WSL credential store                                                                      |
+| Linux / macOS            | `/home/<name>` or `/Users/<name>` | Yes                                                                                                       |
 
 If you already logged in via PowerShell `claude.exe` and want WSL to use those creds too:
-  ```bash
-  # WSL bash — replace <WINUSER>
-  mkdir -p ~/.claude
-  cp -r /mnt/c/Users/<WINUSER>/.claude/. ~/.claude/
-  cp /mnt/c/Users/<WINUSER>/.claude.json ~/.claude.json 2>/dev/null || true
-  mkdir -p ~/.config/gh
-  cp -r "/mnt/c/Users/<WINUSER>/AppData/Roaming/GitHub CLI/." ~/.config/gh/ 2>/dev/null || true
-  ```
+
+```bash
+# WSL bash — replace <WINUSER>
+mkdir -p ~/.claude
+cp -r /mnt/c/Users/<WINUSER>/.claude/. ~/.claude/
+cp /mnt/c/Users/<WINUSER>/.claude.json ~/.claude.json 2>/dev/null || true
+mkdir -p ~/.config/gh
+cp -r "/mnt/c/Users/<WINUSER>/AppData/Roaming/GitHub CLI/." ~/.config/gh/ 2>/dev/null || true
+```
+
 - Launching from PowerShell after a global install — just call the bin directly:
   ```powershell
   ralph-afk "<plan-and-prd>" 3
@@ -147,16 +149,17 @@ cd ralph
 docker build -t docker.io/daonhan/ralph-sandbox:latest -f packages/core/templates/Dockerfile .
 ```
 
-The image bundles: Node 22, .NET SDK 9, `gh`, `jq`, `git`, the Claude Code CLI.
+The image bundles: Node 22, .NET SDK 10, `gh`, `jq`, `git`, the Claude Code CLI.
 
 #### Publishing a new image (maintainers)
 
-The repo ships a GitHub Actions workflow at [`.github/workflows/publish-image.yml`](./.github/workflows/publish-image.yml) that builds + pushes multi-arch (`linux/amd64`, `linux/arm64`) images to Docker Hub.
+The repo ships a GitHub Actions workflow at [`.github/workflows/publish-image.yml`](./.github/workflows/publish-image.yml) that builds + pushes `linux/amd64` images to Docker Hub.
 
 Triggers:
 
 - **`workflow_dispatch`** — manual run from the Actions tab; pick the tag and whether to also push `:latest`.
-- **Git tag `image-v*`** — pushing a tag like `image-v0.1.3` publishes `:0.1.3` plus `:latest`.
+- **Git tag `ralph-sandbox-v*`** — pushing a tag like `ralph-sandbox-v0.1.3` (cut by release-please) publishes `:v0.1.3` plus `:latest`, and enriches the matching GitHub Release with the image digest, an SBOM, and a keyless cosign attestation.
+- **Git tag `image-v*`** — legacy compatibility shim; publishes `:vX.Y.Z` plus `:latest` but does **not** enrich a GitHub Release. Slated for removal after one release cycle through the new path.
 
 Required repo secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (a Docker Hub access token with `Read & Write` scope on the `daonhan/ralph-sandbox` repository).
 
@@ -328,12 +331,12 @@ npx -y @daonhan/ralph ralph-afk "<plan-and-prd>" 5
 
 ### Environment variables
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `RALPH_WORKSPACE` | `process.cwd()` | Host path bind-mounted at `/home/agent/workspace`. Also where `.ralph-tmp/` is written. |
-| `RALPH_DOCKER_CONTEXT` | bundled `@daonhan/ralph-core` dir | Build context for the `docker build` fallback. Only consulted if `docker pull` fails. Must contain `Dockerfile`. Defaults to the npm-installed core dir, which ships `Dockerfile`. |
-| `RALPH_IMAGE` | `docker.io/daonhan/ralph-sandbox:latest` | Full image reference. `ensureImage` does `inspect` → `pull` → `build` (fallback). |
-| `RALPH_IMAGE_TAG` | _(legacy)_ | Deprecated alias for `RALPH_IMAGE`. Honored if `RALPH_IMAGE` unset. |
+| Variable               | Default                                  | Purpose                                                                                                                                                                            |
+| ---------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RALPH_WORKSPACE`      | `process.cwd()`                          | Host path bind-mounted at `/home/agent/workspace`. Also where `.ralph-tmp/` is written.                                                                                            |
+| `RALPH_DOCKER_CONTEXT` | bundled `@daonhan/ralph-core` dir        | Build context for the `docker build` fallback. Only consulted if `docker pull` fails. Must contain `Dockerfile`. Defaults to the npm-installed core dir, which ships `Dockerfile`. |
+| `RALPH_IMAGE`          | `docker.io/daonhan/ralph-sandbox:latest` | Full image reference. `ensureImage` does `inspect` → `pull` → `build` (fallback).                                                                                                  |
+| `RALPH_IMAGE_TAG`      | _(legacy)_                               | Deprecated alias for `RALPH_IMAGE`. Honored if `RALPH_IMAGE` unset.                                                                                                                |
 
 ---
 
@@ -471,26 +474,26 @@ Edit `packages/core/templates/prompt.md` (and `ghprompt.md`) — the playbooks i
 
 ## Files in this folder
 
-| File / dir | Purpose |
-| --- | --- |
-| [`apps/cli/scripts/afk.sh`](./apps/cli/scripts/afk.sh) | Optional shim — plan/PRD loop. Falls back to `npx @daonhan/ralph ralph-afk`. Shipped in the npm tarball. |
-| [`apps/cli/scripts/ghafk.sh`](./apps/cli/scripts/ghafk.sh) | Optional shim — GitHub-issue loop. Calls `ralph-ghafk`. |
-| [`packages/core/templates/prompt.md`](./packages/core/templates/prompt.md) | Agent playbook for `ralph-afk`. Shipped in core tarball. |
-| [`packages/core/templates/ghprompt.md`](./packages/core/templates/ghprompt.md) | Agent playbook for `ralph-ghafk`. Shipped in core tarball. |
-| [`packages/core/templates/Dockerfile`](./packages/core/templates/Dockerfile) | Builds `ralph-sandbox` image: Node 22 + .NET SDK 9 + `gh` + `claude`. Shipped in `@daonhan/ralph-core` tarball. |
-| [`.dockerignore`](./.dockerignore) | Shrinks build context (consumed at repo root for CI builds). |
-| [`package.json`](./package.json) | Monorepo root (private). Shared devDeps + pnpm workspace scripts. |
-| [`pnpm-workspace.yaml`](./pnpm-workspace.yaml) | Declares `apps/*` and `packages/*` as workspace members. |
-| [`tsconfig.base.json`](./tsconfig.base.json) | Shared TS compiler options inherited by every package. |
-| [`apps/cli/`](./apps/cli) | `@daonhan/ralph` — CLI bin entries (`ralph-afk`, `ralph-ghafk`). |
-| [`packages/core/src/main.ts`](./packages/core/src/main.ts) | Exports `runAfk(argv)`. |
-| [`packages/core/src/gh-main.ts`](./packages/core/src/gh-main.ts) | Exports `runGhAfk(argv)`. |
-| [`packages/core/src/loop.ts`](./packages/core/src/loop.ts) | Iteration driver. Runs stage chain; first stage is the gate. |
-| [`packages/core/src/render.ts`](./packages/core/src/render.ts) | Template renderer (`` !`cmd` `` + `{{ INPUTS }}`). |
-| [`packages/core/src/runner.ts`](./packages/core/src/runner.ts) | `docker run` wrapper + NDJSON stream + credential mounts. Image lookup: inspect → pull → build. Reads `RALPH_IMAGE`. |
-| [`.github/workflows/publish-image.yml`](./.github/workflows/publish-image.yml) | CI: build + push multi-arch `ralph-sandbox` to Docker Hub on `workflow_dispatch` or `image-v*` tag. |
-| [`packages/core/src/stages.ts`](./packages/core/src/stages.ts) | Stage registry — `implementer`, `ghafkImplementer`, `reviewer`. |
-| [`packages/core/src/index.ts`](./packages/core/src/index.ts) | Barrel re-export — `runAfk`, `runGhAfk`, `runLoop`, `STAGES`, `renderTemplate`, … |
-| [`packages/core/templates/afk.md`](./packages/core/templates/afk.md) | `ralph-afk` prompt template. |
-| [`packages/core/templates/ghafk.md`](./packages/core/templates/ghafk.md) | `ralph-ghafk` prompt template. |
-| [`packages/core/templates/review.md`](./packages/core/templates/review.md) | Reviewer prompt template. |
+| File / dir                                                                     | Purpose                                                                                                                                                         |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`apps/cli/scripts/afk.sh`](./apps/cli/scripts/afk.sh)                         | Optional shim — plan/PRD loop. Falls back to `npx @daonhan/ralph ralph-afk`. Shipped in the npm tarball.                                                        |
+| [`apps/cli/scripts/ghafk.sh`](./apps/cli/scripts/ghafk.sh)                     | Optional shim — GitHub-issue loop. Calls `ralph-ghafk`.                                                                                                         |
+| [`packages/core/templates/prompt.md`](./packages/core/templates/prompt.md)     | Agent playbook for `ralph-afk`. Shipped in core tarball.                                                                                                        |
+| [`packages/core/templates/ghprompt.md`](./packages/core/templates/ghprompt.md) | Agent playbook for `ralph-ghafk`. Shipped in core tarball.                                                                                                      |
+| [`packages/core/templates/Dockerfile`](./packages/core/templates/Dockerfile)   | Builds `ralph-sandbox` image: Node 22 + .NET SDK 10 + `gh` + `claude`. Shipped in `@daonhan/ralph-core` tarball.                                                |
+| [`.dockerignore`](./.dockerignore)                                             | Shrinks build context (consumed at repo root for CI builds).                                                                                                    |
+| [`package.json`](./package.json)                                               | Monorepo root (private). Shared devDeps + pnpm workspace scripts.                                                                                               |
+| [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)                                 | Declares `apps/*` and `packages/*` as workspace members.                                                                                                        |
+| [`tsconfig.base.json`](./tsconfig.base.json)                                   | Shared TS compiler options inherited by every package.                                                                                                          |
+| [`apps/cli/`](./apps/cli)                                                      | `@daonhan/ralph` — CLI bin entries (`ralph-afk`, `ralph-ghafk`).                                                                                                |
+| [`packages/core/src/main.ts`](./packages/core/src/main.ts)                     | Exports `runAfk(argv)`.                                                                                                                                         |
+| [`packages/core/src/gh-main.ts`](./packages/core/src/gh-main.ts)               | Exports `runGhAfk(argv)`.                                                                                                                                       |
+| [`packages/core/src/loop.ts`](./packages/core/src/loop.ts)                     | Iteration driver. Runs stage chain; first stage is the gate.                                                                                                    |
+| [`packages/core/src/render.ts`](./packages/core/src/render.ts)                 | Template renderer (`` !`cmd` `` + `{{ INPUTS }}`).                                                                                                              |
+| [`packages/core/src/runner.ts`](./packages/core/src/runner.ts)                 | `docker run` wrapper + NDJSON stream + credential mounts. Image lookup: inspect → pull → build. Reads `RALPH_IMAGE`.                                            |
+| [`.github/workflows/publish-image.yml`](./.github/workflows/publish-image.yml) | CI: build + push `linux/amd64` `ralph-sandbox` to Docker Hub on `workflow_dispatch`, `ralph-sandbox-v*` tag (release-please primary), or legacy `image-v*` tag. |
+| [`packages/core/src/stages.ts`](./packages/core/src/stages.ts)                 | Stage registry — `implementer`, `ghafkImplementer`, `reviewer`.                                                                                                 |
+| [`packages/core/src/index.ts`](./packages/core/src/index.ts)                   | Barrel re-export — `runAfk`, `runGhAfk`, `runLoop`, `STAGES`, `renderTemplate`, …                                                                               |
+| [`packages/core/templates/afk.md`](./packages/core/templates/afk.md)           | `ralph-afk` prompt template.                                                                                                                                    |
+| [`packages/core/templates/ghafk.md`](./packages/core/templates/ghafk.md)       | `ralph-ghafk` prompt template.                                                                                                                                  |
+| [`packages/core/templates/review.md`](./packages/core/templates/review.md)     | Reviewer prompt template.                                                                                                                                       |

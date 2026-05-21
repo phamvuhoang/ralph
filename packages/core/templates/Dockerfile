@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
   && rm -rf /var/lib/apt/lists/*
 
-# .NET SDK 9 (Microsoft package feed for Debian 12 / Bookworm)
+# .NET SDK 10 (Microsoft package feed for Debian 12 / Bookworm)
 RUN wget -qO /tmp/ms.deb https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
   && dpkg -i /tmp/ms.deb \
   && rm /tmp/ms.deb \
