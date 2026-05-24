@@ -13,6 +13,7 @@ export type CliFlags = {
   help: boolean;
   version: boolean;
   printConfig: boolean;
+  noKeepAlive: boolean;
   rest: string[];
 };
 
@@ -20,14 +21,16 @@ export function parseFlags(argv: string[]): CliFlags {
   let help = false;
   let version = false;
   let printConfig = false;
+  let noKeepAlive = false;
   const rest: string[] = [];
   for (const a of argv) {
     if (a === "-h" || a === "--help") help = true;
     else if (a === "-V" || a === "--version") version = true;
     else if (a === "--print-config") printConfig = true;
+    else if (a === "--no-keep-alive") noKeepAlive = true;
     else rest.push(a);
   }
-  return { help, version, printConfig, rest };
+  return { help, version, printConfig, noKeepAlive, rest };
 }
 
 /**
@@ -72,6 +75,7 @@ Flags:
   -h, --help          show this help and exit
   -V, --version       print bin + core version and exit
   --print-config      resolve workspace / docker context / image / docker socket, print, exit without launching docker
+  --no-keep-alive     skip OS wake-lock acquisition (default: acquire system-sleep inhibitor for loop lifetime)
 
 Environment variables:
   RALPH_WORKSPACE       host dir bind-mounted at /home/agent/workspace (default: cwd)
@@ -96,13 +100,19 @@ Build fallback runs only if pull fails AND $RALPH_DOCKER_CONTEXT/Dockerfile exis
 `);
 }
 
+export type PrintConfigOptions = {
+  cliVersion?: string;
+  noKeepAlive?: boolean;
+};
+
 export function printConfig(
   bin: string,
   workspaceDir: string,
   ralphDir: string,
   sandcastleDir: string,
-  cliVersion?: string
+  opts: PrintConfigOptions = {}
 ): void {
+  const { cliVersion, noKeepAlive = false } = opts;
   const dockerfile = resolveDockerfile(ralphDir);
   const dfPresent = existsSync(dockerfile);
   const core = readCoreVersion();
@@ -130,6 +140,8 @@ export function printConfig(
     sockStatus = `mounting ${detectedSock} (${sockSource})${groupAdd ? `, --group-add ${groupAdd}` : ""}`;
   }
 
+  const keepAliveStatus = noKeepAlive ? "off" : "on (system sleep only)";
+
   process.stdout.write(`[${bin}] resolved config
   version               ${bin} ${cli} (core ${core})
   RALPH_WORKSPACE       ${workspaceDir}${process.env.RALPH_WORKSPACE ? "" : "  (default: cwd)"}
@@ -138,5 +150,6 @@ export function printConfig(
   Dockerfile at ctx     ${dfPresent ? "present" : "MISSING"} (${dockerfile})
   sandcastleDir         ${sandcastleDir}
   RALPH_DOCKER_SOCK     ${sockStatus}
+  keep-alive            ${keepAliveStatus}
 `);
 }

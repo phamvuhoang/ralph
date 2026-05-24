@@ -37,7 +37,10 @@ export async function runAfk(
   const ralphDir = resolve(process.env.RALPH_DOCKER_CONTEXT ?? sandcastleDir);
 
   if (flags.printConfig) {
-    printConfig(BIN, workspaceDir, ralphDir, sandcastleDir, opts.cliVersion);
+    printConfig(BIN, workspaceDir, ralphDir, sandcastleDir, {
+      cliVersion: opts.cliVersion,
+      noKeepAlive: flags.noKeepAlive,
+    });
     return;
   }
 
@@ -60,5 +63,6 @@ export async function runAfk(
     ralphDir,
     workspaceDir,
     sandcastleDir,
+    noKeepAlive: flags.noKeepAlive,
   });
 }
