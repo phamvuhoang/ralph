@@ -130,7 +130,7 @@ async function imageVersion(repo) {
   const body = await res.json();
   const versions = (body.results || [])
     .map((t) => t.name)
-    .filter((n) => /^\d+\.\d+\.\d+$/.test(n))
+    .filter((n) => /^v?\d+\.\d+\.\d+$/.test(n)) // image tags publish as vX.Y.Z
     .sort(compareVersions);
   return versions.length ? versions[versions.length - 1] : null;
 }
