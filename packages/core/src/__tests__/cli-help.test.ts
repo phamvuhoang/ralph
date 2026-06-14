@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseIssueRef } from "../cli-help.js";
+import { parseFlags, parseIssueRef } from "../cli-help.js";
 
 describe("parseIssueRef", () => {
   it("accepts a bare number", () => {
@@ -33,4 +33,22 @@ describe("parseIssueRef", () => {
       expect(() => parseIssueRef(bad)).toThrow();
     }
   );
+});
+
+describe("parseFlags --issue", () => {
+  it("parses --issue into a number", () => {
+    expect(parseFlags(["--issue", "42", "5"]).issue).toBe(42);
+  });
+  it("leaves issue undefined when absent", () => {
+    expect(parseFlags(["5"]).issue).toBeUndefined();
+  });
+  it("keeps iterations as the trailing positional", () => {
+    expect(parseFlags(["--issue", "42", "5"]).rest).toEqual(["5"]);
+  });
+  it("throws when --issue has no value", () => {
+    expect(() => parseFlags(["--issue"])).toThrow("--issue requires a value");
+  });
+  it("throws when --issue value is invalid", () => {
+    expect(() => parseFlags(["--issue", "foo", "5"])).toThrow();
+  });
 });

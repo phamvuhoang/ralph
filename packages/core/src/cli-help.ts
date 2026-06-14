@@ -18,6 +18,7 @@ export type CliFlags = {
   reviewPanel: boolean;
   watch: boolean;
   watchIntervalSec?: number;
+  issue?: number;
   rest: string[];
 };
 
@@ -74,6 +75,8 @@ export function parseFlags(argv: string[]): CliFlags {
   let watch = false;
   let watchIntervalSec: number | undefined;
   let expectingWatchInterval = false;
+  let issue: number | undefined;
+  let expectingIssue = false;
   const rest: string[] = [];
   for (const a of argv) {
     if (expectingMaxRetries) {
@@ -122,6 +125,11 @@ export function parseFlags(argv: string[]): CliFlags {
       expectingWatchInterval = false;
       continue;
     }
+    if (expectingIssue) {
+      issue = parseIssueRef(a);
+      expectingIssue = false;
+      continue;
+    }
     if (a === "-h" || a === "--help") help = true;
     else if (a === "-V" || a === "--version") version = true;
     else if (a === "--print-config") printConfig = true;
@@ -135,6 +143,7 @@ export function parseFlags(argv: string[]): CliFlags {
     else if (a === "--review-panel") reviewPanel = true;
     else if (a === "--watch") watch = true;
     else if (a === "--watch-interval") expectingWatchInterval = true;
+    else if (a === "--issue") expectingIssue = true;
     else rest.push(a);
   }
   if (expectingMaxRetries) {
@@ -151,6 +160,9 @@ export function parseFlags(argv: string[]): CliFlags {
   }
   if (expectingWatchInterval) {
     throw new Error("--watch-interval requires a value");
+  }
+  if (expectingIssue) {
+    throw new Error("--issue requires a value");
   }
   if (log !== undefined && !detach) {
     throw new Error("--log is only meaningful with --detach");
@@ -169,6 +181,7 @@ export function parseFlags(argv: string[]): CliFlags {
     reviewPanel,
     watch,
     watchIntervalSec,
+    issue,
     rest,
   };
 }
