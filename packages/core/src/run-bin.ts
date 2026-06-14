@@ -91,6 +91,11 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     return;
   }
 
+  if (flags.issue != null && !cfg.issueStage) {
+    console.error("--issue is only supported by ralph-ghafk");
+    process.exit(1);
+  }
+
   const inputs =
     flags.issue != null
       ? String(flags.issue)
@@ -110,10 +115,6 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
   }
 
   if (flags.issue != null) {
-    if (!cfg.issueStage) {
-      console.error("--issue is only supported by ralph-ghafk");
-      process.exit(1);
-    }
     if (flags.watch) {
       console.error("--issue cannot be combined with --watch");
       process.exit(1);
@@ -124,8 +125,8 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
   }
 
   const stages =
-    flags.issue != null && cfg.issueStage
-      ? ([cfg.issueStage, ...cfg.stages.slice(1)] as [Stage, ...Stage[]])
+    flags.issue != null
+      ? ([cfg.issueStage!, ...cfg.stages.slice(1)] as [Stage, ...Stage[]])
       : cfg.stages;
 
   if (flags.detach && detachLogPath) {
