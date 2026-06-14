@@ -1,3 +1,5 @@
+@include:superpowers.md
+
 # EXPLORATION
 
 Explore the repo.
