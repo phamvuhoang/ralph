@@ -54,10 +54,19 @@ export function renderTemplate(
   const templateDir = dirname(templatePath);
   const shell = resolveShell();
 
-  const afterInclude = raw.replace(INCLUDE_TAG, (_match, rel: string) => {
-    const target = isAbsolute(rel) ? rel : resolve(templateDir, rel);
-    return readFileSync(target, "utf8").replace(/\r?\n$/, "");
-  });
+  // Expand @include directives recursively until no directives remain.
+  // Each pass resolves relative paths against the including file's directory.
+  function expandIncludes(text: string, fromDir: string): string {
+    const expanded = text.replace(INCLUDE_TAG, (_match, rel: string) => {
+      const target = isAbsolute(rel) ? rel : resolve(fromDir, rel);
+      const content = readFileSync(target, "utf8").replace(/\r?\n$/, "");
+      // Recurse so includes within included files are resolved relative to
+      // the included file's own directory.
+      return expandIncludes(content, dirname(target));
+    });
+    return expanded;
+  }
+  const afterInclude = expandIncludes(raw, templateDir);
 
   const afterSpill = afterInclude.replace(
     SPILL_TAG,

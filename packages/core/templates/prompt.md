@@ -6,6 +6,8 @@ You've also been passed the last few commits in `<commits>`. Review them to unde
 
 Work through the plan/PRD tasks. If all of them are complete, output `<promise>NO MORE TASKS</promise>`.
 
+@include:superpowers.md
+
 # TASK SELECTION
 
 Pick the next task. Prioritize tasks in this order:

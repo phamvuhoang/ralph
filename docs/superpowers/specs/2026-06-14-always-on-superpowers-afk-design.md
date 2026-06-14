@@ -75,8 +75,12 @@ The entire change is data (templates):
 | ---------------------------------------------- | ----------------------------------------------------------------------------- |
 | `packages/core/templates/superpowers.md`       | **new** — self-contained clarity-gate + brainstorm + spec/plan + TDD protocol |
 | `packages/core/templates/prompt.md`            | add `@include:superpowers.md` near the top (before TASK SELECTION)            |
-| `packages/core/templates/ghprompt.md`          | add `@include:superpowers.md`                                                 |
-| `packages/core/templates/ghprompt-workflow.md` | add `@include:superpowers.md`                                                 |
+| `packages/core/templates/ghprompt-workflow.md` | add `@include:superpowers.md` at the top (before EXPLORATION)                 |
+
+`ghprompt-workflow.md` covers both gh paths: `ghafk-issue.md` includes it
+directly; `ghafk.md` includes `ghprompt.md` which includes `ghprompt-workflow.md`
+transitively. Adding the directive to `ghprompt.md` as well would double-include
+the fragment and is intentionally avoided.
 
 `superpowers.md` ships automatically — `packages/core`'s `files` glob already
 includes `templates/`.
