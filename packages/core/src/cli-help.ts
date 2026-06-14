@@ -21,6 +21,40 @@ export type CliFlags = {
   rest: string[];
 };
 
+/**
+ * Normalize a user-supplied issue reference to a positive integer.
+ * Accepts: `42`, `#42`, `owner/repo#42`, and GitHub issue URLs
+ * (`https://github.com/owner/repo/issues/42[#anchor]`). A repo component is
+ * ignored — only the number is used (gh resolves the repo from the workspace).
+ * Throws on anything that is not a positive integer.
+ *
+ * SECURITY: the returned integer is the ONLY part of the ref that may reach a
+ * shell (via the RALPH_ISSUE env var read by a static template command). Never
+ * pass the raw ref to a shell. See render.ts security invariant.
+ */
+export function parseIssueRef(raw: string): number {
+  const s = raw.trim();
+  let token = s;
+  const urlMatch = s.match(/\/issues\/(\d+)(?:[#?].*)?$/);
+  if (urlMatch) {
+    token = urlMatch[1];
+  } else if (s.includes("#")) {
+    token = s.slice(s.lastIndexOf("#") + 1);
+  }
+  if (!/^\d+$/.test(token)) {
+    throw new Error(
+      `--issue must be a positive issue number, #N, owner/repo#N, or a GitHub issue URL, got: ${JSON.stringify(raw)}`
+    );
+  }
+  const n = Number.parseInt(token, 10);
+  if (n < 1) {
+    throw new Error(
+      `--issue must be a positive issue number, got: ${JSON.stringify(raw)}`
+    );
+  }
+  return n;
+}
+
 export function parseFlags(argv: string[]): CliFlags {
   let help = false;
   let version = false;
