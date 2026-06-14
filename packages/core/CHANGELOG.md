@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.8.1...ralph-core-v0.9.0) (2026-06-14)
+
+
+### Features
+
+* **core:** always-on superpowers workflow in AFK playbooks ([12ec608](https://github.com/phamvuhoang/ralph/commit/12ec6087b25c9b2eb613b508122d24415c929218))
+* **core:** always-on superpowers workflow in the AFK loop ([62b9ee6](https://github.com/phamvuhoang/ralph/commit/62b9ee64f284bb4d6f53d3dffd66fcb198dcaa38))
+
 ## [0.8.1](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.8.0...ralph-core-v0.8.1) (2026-06-14)
 
 
