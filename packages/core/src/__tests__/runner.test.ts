@@ -174,4 +174,23 @@ describe("buildClaudeArgs", () => {
     expect(modelIdx).toBeGreaterThan(-1);
     expect(modelIdx).toBeLessThan(promptIdx);
   });
+
+  it("injects --settings before the prompt when a settings path is given", () => {
+    const args = buildClaudeArgs(
+      stage,
+      promptPath,
+      [],
+      "/ws/.ralph-tmp/s.json"
+    );
+    const sIdx = args.indexOf("--settings");
+    expect(sIdx).toBeGreaterThan(-1);
+    expect(args[sIdx + 1]).toBe("/ws/.ralph-tmp/s.json");
+    const promptIdx = args.findIndex((a) => a.includes(promptPath));
+    expect(sIdx).toBeLessThan(promptIdx);
+  });
+
+  it("omits --settings when no settings path is given", () => {
+    const args = buildClaudeArgs(stage, promptPath, []);
+    expect(args).not.toContain("--settings");
+  });
 });

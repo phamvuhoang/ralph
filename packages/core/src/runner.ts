@@ -433,8 +433,9 @@ export function stageLogPath(
  */
 export function buildClaudeArgs(
   stage: Stage,
-  promptContainerPath: string,
-  modelArgs: string[]
+  promptRelPath: string,
+  modelArgs: string[],
+  settingsPath?: string
 ): string[] {
   const args = [
     "claude",
@@ -446,9 +447,12 @@ export function buildClaudeArgs(
   if (stage.permissionMode) {
     args.push("--permission-mode", stage.permissionMode);
   }
+  if (settingsPath) {
+    args.push("--settings", settingsPath);
+  }
   args.push(...modelArgs);
   args.push(
-    `Read the full instructions from the file ./${promptContainerPath} in the current workspace and execute them.`
+    `Read the full instructions from the file ./${promptRelPath} in the current workspace and execute them.`
   );
   return args;
 }
