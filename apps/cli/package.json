@@ -4,7 +4,7 @@
   "description": "CLI for the ralph AFK loop (ralph-afk, ralph-ghafk).",
   "type": "module",
   "license": "MIT",
-  "author": "Paul Nguyen <daonhan@gmail.com>",
+  "author": "Henry Pham <phamvuhoang@gmail.com>",
   "homepage": "https://github.com/phamvuhoang/ralph/tree/main/apps/cli#readme",
   "repository": {
     "type": "git",

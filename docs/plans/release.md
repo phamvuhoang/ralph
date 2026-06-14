@@ -21,7 +21,7 @@ Durable decisions that apply across all phases. Do not relitigate these inside a
 - **Conventional Commits**: existing convention (`feat:`, `fix:`, `chore:`, `ci:`, `refactor:`, `perf:`, `deps:`) drives both the bump type and the CHANGELOG section. No contributor behavior change required.
 - **Concurrency**: release-please uses concurrency group `release-please-${{ github.ref }}`. Publish workflows use existing per-workflow groups. No global lock.
 - **Permission model on publish stays `bypassPermissions`** is unrelated; this is the Claude AFK loop's concern, not the release loop's.
-- **Existing artifacts are preserved**: `@daonhan/ralph-core@0.1.1`, `@daonhan/ralph@0.1.0`, and the `image-v0.1.1` Git tag remain. Nothing is re-published or moved.
+- **Existing artifacts are preserved**: `@phamvuhoang/ralph-core@0.1.1`, `@phamvuhoang/ralph@0.1.0`, and the `image-v0.1.1` Git tag remain. Nothing is re-published or moved.
 
 ---
 
@@ -31,7 +31,7 @@ Durable decisions that apply across all phases. Do not relitigate these inside a
 
 ### What to build
 
-Adopt release-please for `ralph-core` only as the first vertical slice. End-to-end this means: a maintainer pushes a `feat:` or `fix:` commit to `main`, release-please opens a Release PR proposing the next `ralph-core` version and the `CHANGELOG.md` diff, the maintainer merges the PR, a `ralph-core-vX.Y.Z` tag is created, and the rewired npm publish workflow fires and publishes `@daonhan/ralph-core` to the registry.
+Adopt release-please for `ralph-core` only as the first vertical slice. End-to-end this means: a maintainer pushes a `feat:` or `fix:` commit to `main`, release-please opens a Release PR proposing the next `ralph-core` version and the `CHANGELOG.md` diff, the maintainer merges the PR, a `ralph-core-vX.Y.Z` tag is created, and the rewired npm publish workflow fires and publishes `@phamvuhoang/ralph-core` to the registry.
 
 The slice cuts through every layer: config (manifest + release-please-config), CI (new `release-please.yml` + rewritten `publish-npm.yml`), docs (stub `RELEASING.md` with the policy section and an empty status-table block), and verification (cut a real release through the new path).
 
@@ -44,7 +44,7 @@ The CLI and image components do not participate yet. The old path-based trigger 
 - [ ] `.github/workflows/publish-npm.yml` is rewritten to trigger on `push: tags: ['ralph-core-v*']` and publishes `packages/core` based on the tag prefix
 - [ ] The old path-filter-based trigger on `publish-npm.yml` is removed
 - [ ] A no-op release PR can be opened by pushing a `chore:` commit, and the maintainer can verify the proposed CHANGELOG diff before merging
-- [ ] Merging the release PR creates a `ralph-core-vX.Y.Z` tag, the publish workflow fires, and `@daonhan/ralph-core@X.Y.Z` appears on the npm registry
+- [ ] Merging the release PR creates a `ralph-core-vX.Y.Z` tag, the publish workflow fires, and `@phamvuhoang/ralph-core@X.Y.Z` appears on the npm registry
 - [ ] Root `CHANGELOG.md` is created and contains the first release entry grouped by Conventional Commit type
 - [ ] Stub `RELEASING.md` at repo root exists with: the policy section (independent + 0.x-as-stable), the empty `<!-- status-table -->` block, and a TODO list for the sections that arrive in later phases
 
@@ -56,7 +56,7 @@ The CLI and image components do not participate yet. The old path-based trigger 
 
 ### What to build
 
-Extend release-please to manage `apps/cli`. The CLI currently lags `ralph-core` silently because no CI path publishes it. After this slice, a commit that touches `apps/cli/**` triggers its own Release PR section and tag, and merging it publishes `@daonhan/ralph` to npm via the same workflow used for core.
+Extend release-please to manage `apps/cli`. The CLI currently lags `ralph-core` silently because no CI path publishes it. After this slice, a commit that touches `apps/cli/**` triggers its own Release PR section and tag, and merging it publishes `@phamvuhoang/ralph` to npm via the same workflow used for core.
 
 End-to-end: the existing `publish-npm.yml` learns to route by tag prefix (`ralph-core-v*` → `packages/core`, `ralph-v*` → `apps/cli`). Manifest seeds `ralph@0.1.0`. Release-please config gains the second component declaration. The CHANGELOG starts receiving CLI entries in its own subsection.
 
@@ -68,7 +68,7 @@ This slice is small on purpose. It validates that the multi-component pattern wo
 - [ ] `.release-please-manifest.json` seeds `ralph@0.1.0`
 - [ ] `publish-npm.yml` triggers on both `ralph-core-v*` and `ralph-v*` and routes the publish step to the correct package directory based on `${GITHUB_REF_NAME}`
 - [ ] A commit touching only `apps/cli/**` causes release-please to propose a bump for `ralph` and not `ralph-core`
-- [ ] Merging a `ralph` release PR creates a `ralph-vX.Y.Z` tag and publishes `@daonhan/ralph@X.Y.Z` to npm
+- [ ] Merging a `ralph` release PR creates a `ralph-vX.Y.Z` tag and publishes `@phamvuhoang/ralph@X.Y.Z` to npm
 - [ ] CHANGELOG entries for the CLI appear under a clearly distinct subsection
 
 ---
@@ -81,7 +81,7 @@ This slice is small on purpose. It validates that the multi-component pattern wo
 
 Introduce the third release-please component: a synthetic `ralph-sandbox` rooted at `packages/core` but path-scoped to `packages/core/Dockerfile` and `packages/core/templates/**`. This is the novel piece of the configuration: it lets a Dockerfile or template change bump the image version without dragging `ralph-core` along, and vice versa.
 
-End-to-end: a Dockerfile or template change on `main` causes release-please to open (or update) a `ralph-sandbox` release PR. Merging it creates a `ralph-sandbox-vX.Y.Z` tag. The rewritten `publish-image.yml` triggers on that tag, builds the image, pushes to Docker Hub, captures the `sha256:…` digest emitted by buildx, and appends `Image: docker.io/daonhan/ralph-sandbox@sha256:…` to the GH Release body via `gh release edit`.
+End-to-end: a Dockerfile or template change on `main` causes release-please to open (or update) a `ralph-sandbox` release PR. Merging it creates a `ralph-sandbox-vX.Y.Z` tag. The rewritten `publish-image.yml` triggers on that tag, builds the image, pushes to Docker Hub, captures the `sha256:…` digest emitted by buildx, and appends `Image: docker.io/phamvuhoang/ralph-sandbox@sha256:…` to the GH Release body via `gh release edit`.
 
 The previous `image-v*` push trigger is kept as a compatibility shim alongside the new trigger; removal happens in a follow-up after one good release through the new path. `workflow_dispatch` is retained for emergency rebuilds (CVE in base image, etc.) that don't warrant a semver bump.
 
@@ -92,7 +92,7 @@ The previous `image-v*` push trigger is kept as a compatibility shim alongside t
 - [ ] A commit touching `packages/core/src/**` does **not** open a `ralph-sandbox` release PR
 - [ ] A commit touching `packages/core/Dockerfile` or `packages/core/templates/**` **does** open a `ralph-sandbox` release PR
 - [ ] `publish-image.yml` triggers on `ralph-sandbox-v*` tags, builds + pushes the image, and is the new primary path
-- [ ] After push, the workflow appends the image digest to the corresponding GH Release body in the form `Image: docker.io/daonhan/ralph-sandbox@sha256:…`
+- [ ] After push, the workflow appends the image digest to the corresponding GH Release body in the form `Image: docker.io/phamvuhoang/ralph-sandbox@sha256:…`
 - [ ] `image-v*` trigger remains in the workflow for one release as a fallback; `workflow_dispatch` remains available
 
 ---
@@ -109,8 +109,8 @@ End-to-end: the existing publish workflows gain inline post-publish steps that p
 
 ### Acceptance criteria
 
-- [ ] After a successful `@daonhan/ralph-core` publish, the corresponding GH Release contains the `.tgz` produced by `pnpm pack`, an SBOM file, and a cosign attestation
-- [ ] After a successful `@daonhan/ralph` publish, the corresponding GH Release contains the same three artifacts
+- [ ] After a successful `@phamvuhoang/ralph-core` publish, the corresponding GH Release contains the `.tgz` produced by `pnpm pack`, an SBOM file, and a cosign attestation
+- [ ] After a successful `@phamvuhoang/ralph` publish, the corresponding GH Release contains the same three artifacts
 - [ ] After a successful image publish, the corresponding GH Release contains an SBOM and a cosign attestation for the image, in addition to the digest in the body
 - [ ] Failure to produce an SBOM or attestation fails the workflow loudly; it does not silently skip
 - [ ] Artifact filenames follow a predictable convention so users can fetch them programmatically
@@ -154,7 +154,7 @@ End-to-end: `RELEASING.md` becomes the single source of truth, covering the main
 
 - [ ] `RELEASING.md` contains all eight sections from the PRD: status table, how to cut a release, Conventional Commit guide, version policy, pre-release opt-in, rollback runbook, compatibility matrix, tag naming
 - [ ] The rollback runbook contains concrete commands for `npm deprecate` (per affected version) and for removing or repointing a bad image tag on Docker Hub
-- [ ] The compatibility matrix lists known-good combinations of `@daonhan/ralph` × `@daonhan/ralph-core` × `ralph-sandbox` image tag, with at least the current set populated
+- [ ] The compatibility matrix lists known-good combinations of `@phamvuhoang/ralph` × `@phamvuhoang/ralph-core` × `ralph-sandbox` image tag, with at least the current set populated
 - [ ] The `release-as:` commit-footer override is documented with at least one example
 - [ ] `docs/PUBLISHING.md` is reduced to a single line pointing at `RELEASING.md` and the prior content lives in `RELEASING.md`
 - [ ] No section of `RELEASING.md` requires external context that is not also in the document or in a clearly named referenced file

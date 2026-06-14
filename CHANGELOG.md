@@ -9,7 +9,7 @@ the release process and commit conventions.
 
 ## ralph-core 0.1.1 (baseline)
 
-Seed entry for the version already published to npm as `@daonhan/ralph-core@0.1.1`
+Seed entry for the version already published to npm as `@phamvuhoang/ralph-core@0.1.1`
 before release-please was adopted. release-please proposes the next version from
 this baseline based on Conventional Commits landed since.
 
@@ -24,11 +24,11 @@ this baseline based on Conventional Commits landed since.
 
 ## ralph 0.1.0 (baseline)
 
-Seed entry for the version already published to npm as `@daonhan/ralph@0.1.0`
+Seed entry for the version already published to npm as `@phamvuhoang/ralph@0.1.0`
 before release-please was adopted. The CLI is versioned independently of
 `ralph-core`; its entries always appear under their own `ralph` heading.
 
 ### Features
 
 - CLI exposing the `ralph-afk` (plan/PRD loop) and `ralph-ghafk`
-  (GitHub-issue loop) bin entries, depending on `@daonhan/ralph-core`.
+  (GitHub-issue loop) bin entries, depending on `@phamvuhoang/ralph-core`.

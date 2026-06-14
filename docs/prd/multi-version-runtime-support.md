@@ -87,7 +87,7 @@ Most specific wins. Evaluated top-down per language; first hit short-circuits.
 - First publish lands as `:v2` only. Existing users on `:latest` are unaffected until promotion.
 - A soak period of one CLI release cycle (or a week of personal use), then promote `:v2` to also tag `:latest`. Old `:v1` retained as escape hatch.
 - README gets a "Runtime detection" section explaining the manifests honored and the env-var override knobs.
-- `@daonhan/ralph-core` minor version bump on merge. `IMAGE_REF` default stays `:latest` and naturally inherits the promoted v2 image post-soak.
+- `@phamvuhoang/ralph-core` minor version bump on merge. `IMAGE_REF` default stays `:latest` and naturally inherits the promoted v2 image post-soak.
 
 ## Testing Decisions
 
@@ -157,7 +157,7 @@ Docker container behavior, mise install behavior, the entrypoint shim's bash, CI
 End-to-end smoke after merge:
 
 1. `pnpm install && pnpm -r build && pnpm -r typecheck` — clean.
-2. `pnpm --filter @daonhan/ralph-core test` — `detect.ts` unit tests green.
+2. `pnpm --filter @phamvuhoang/ralph-core test` — `detect.ts` unit tests green.
 3. `docker build -t ralph-sandbox:dev -f packages/core/Dockerfile .` — builds locally.
 4. `docker run --rm -e RALPH_NODE=20 ralph-sandbox:dev node --version` — prints `v20.x.x`.
 5. `docker run --rm -e RALPH_DOTNET=8.0 ralph-sandbox:dev dotnet --list-sdks` — shows 8, 9, 10.

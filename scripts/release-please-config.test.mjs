@@ -101,7 +101,7 @@ test("component changelog-only changes do not trigger release PRs", () => {
 });
 
 test("change touching packages/core/templates/** (playbooks) bumps ralph-core", () => {
-  // Templates ship inside the @daonhan/ralph-core npm tarball, so a playbook
+  // Templates ship inside the @phamvuhoang/ralph-core npm tarball, so a playbook
   // edit must release a new ralph-core (no separate image component anymore).
   expectOnly(["packages/core/templates/prompt.md"], "ralph-core");
 });

@@ -48,7 +48,7 @@ it("does not retry an AbortError — rethrows immediately", async () => {
 
 (Use the file's existing import style for `withRetries`/`vi`.)
 
-- [ ] **Step 2: Run → fail.** `pnpm --filter @daonhan/ralph-core test -- retry`
+- [ ] **Step 2: Run → fail.** `pnpm --filter @phamvuhoang/ralph-core test -- retry`
 
 - [ ] **Step 3: Implement.** In `withRetries`, in the catch before scheduling a retry, add:
 
@@ -346,7 +346,7 @@ export async function runWatch(opts: RunWatchOptions): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run → pass.** `pnpm --filter @daonhan/ralph-core test -- watch`
+- [ ] **Step 4: Run → pass.** `pnpm --filter @phamvuhoang/ralph-core test -- watch`
 
 - [ ] **Step 5: Commit** — `git add packages/core/src/watch.ts packages/core/src/__tests__/watch.test.ts && git commit -m "feat(watch): runWatch daemon — poll labelled issues, cumulative budget"`
 

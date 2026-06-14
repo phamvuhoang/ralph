@@ -118,7 +118,7 @@ describe("learnings read-back block", () => {
 
 - [x] **Step 2: Run the test to verify it fails**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- learnings`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- learnings`
 Expected: FAIL — the "injects" assertions fail (`expected '...' to contain '- pnpm not npm'`) and the fallback assertion fails because no `<learnings>` block exists in the templates yet.
 
 - [x] **Step 3: Add the read-back block to `afk.md`**
@@ -243,7 +243,7 @@ with:
 
 - [x] **Step 8: Run the test to verify it passes**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- learnings`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- learnings`
 Expected: PASS (3 tests).
 
 - [x] **Step 9: Commit**
@@ -346,7 +346,7 @@ Dedupe against existing entries and prune anything no longer true. This file is 
 
 - [x] **Step 3: Verify the render suite still passes**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- render learnings`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- render learnings`
 Expected: PASS (the playbooks are `@include`-d into `afk.md`/`ghafk.md`; rendering must still succeed).
 
 - [x] **Step 4: Commit**
@@ -417,7 +417,7 @@ with:
 
 - [x] **Step 4: Verify the render suite still passes**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- render learnings`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- render learnings`
 Expected: PASS.
 
 - [x] **Step 5: Commit**

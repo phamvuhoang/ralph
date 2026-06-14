@@ -1,6 +1,6 @@
 # Plan: Keep Ralph Alive While AFK
 
-> Source PRD: [docs/prd/keep-alive.md](../prd/keep-alive.md) · GitHub issue [#17](https://github.com/daonhan/ralph/issues/17)
+> Source PRD: [docs/prd/keep-alive.md](../prd/keep-alive.md) · GitHub issue [#17](https://github.com/phamvuhoang/ralph/issues/17)
 
 ## Architectural decisions
 
@@ -43,7 +43,7 @@ A `keepalive` deep module that acquires an OS wake-lock on entry to `runLoop` an
 - [ ] Windows / macOS / Linux / WSL2 platform branches each pass the documented argv to the injected spawner.
 - [ ] Unit tests verify per-OS argv and that `release()` kills the child for each branch.
 - [ ] Missing-utility path (spawner throws `ENOENT`) emits one warning to stderr and returns a no-op releaser whose `release()` is safe to call.
-- [ ] `vitest` is wired into `packages/core` (`devDependencies`, `test` script). `pnpm --filter @daonhan/ralph-core test` runs the suite green.
+- [ ] `vitest` is wired into `packages/core` (`devDependencies`, `test` script). `pnpm --filter @phamvuhoang/ralph-core test` runs the suite green.
 - [ ] `loop.ts` acquires the lock before iteration 1 and releases it in a `finally` that also covers `SIGINT` / `SIGTERM`.
 - [ ] `SIGINT` exits with code `130`; `SIGTERM` exits with code `143`. Wake-lock child is dead after either signal.
 - [ ] `--no-keep-alive` flag on both bins skips acquisition entirely (verified via `--print-config` showing `keep-alive : off`).

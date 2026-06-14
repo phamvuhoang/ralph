@@ -1,6 +1,6 @@
 # PRD: `RALPH_MODEL` env knob to pin the sandbox Claude model
 
-> Tracking: [daonhan/ralph#35](https://github.com/daonhan/ralph/issues/35) (PRD). Target release: `@daonhan/ralph-core` 0.7.0 (new env knob → `feat(core)` minor bump).
+> Tracking: [phamvuhoang/ralph#35](https://github.com/phamvuhoang/ralph/issues/35) (PRD). Target release: `@phamvuhoang/ralph-core` 0.7.0 (new env knob → `feat(core)` minor bump).
 
 ## Problem Statement
 
@@ -90,7 +90,7 @@ uses that model; the `init model=…` line in the stream reflects my choice.
 
 ## Release
 
-- Target version: **`@daonhan/ralph-core` 0.7.0** (minor bump from 0.6.1 — adds a new env knob).
+- Target version: **`@phamvuhoang/ralph-core` 0.7.0** (minor bump from 0.6.1 — adds a new env knob).
 - Mechanism: lands as a `feat(core): …` conventional commit; release-please picks it up and opens the release PR automatically (no manual `package.json` / `.release-please-manifest.json` edits required).
-- `@daonhan/ralph` (CLI) is **not** bumped by this change — the CLI only re-exports `runAfk` from core. If a sibling commit in the same release cycle touches the CLI bins, release-please bumps the CLI separately.
+- `@phamvuhoang/ralph` (CLI) is **not** bumped by this change — the CLI only re-exports `runAfk` from core. If a sibling commit in the same release cycle touches the CLI bins, release-please bumps the CLI separately.
 - Sandbox image (`packages/core/templates`) is unaffected; no `ralph-sandbox-v*` tag.

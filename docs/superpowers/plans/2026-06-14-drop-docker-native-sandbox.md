@@ -14,16 +14,16 @@
 
 ## File Structure
 
-| File | Responsibility after this change |
-| --- | --- |
-| `packages/core/src/runner.ts` | Spawn `claude` + stream NDJSON. Holds `resolveRunner`, `resolveSandboxNet`, `buildSandboxSettings`, `buildClaudeArgs`, `runStage`, `streamClaude`, `parseGraceMs`, `resolveModelArgs`, `stageLogPath`. No Docker. |
-| `packages/core/src/loop.ts` | Iteration driver. No `ensureImage`, no `ralphDir`. |
-| `packages/core/src/run-bin.ts` | Resolve dirs (no `ralphDir`), drive `runLoop`. |
-| `packages/core/src/cli-help.ts` | Flags + `--help`/`--print-config` (runner/sandbox-net, no Docker). |
-| `packages/core/src/stages.ts` | Stage table; updated blast-radius comment. |
-| `packages/core/src/index.ts` | Public exports (drop `ensureImage`). |
-| `packages/core/templates/{prompt,review}.md` | Playbooks minus the MSB3248 virtiofs workaround. |
-| Deleted | `templates/Dockerfile`, `templates/CHANGELOG.md`, `.github/workflows/publish-image.yml`, release-please `ralph-sandbox` component, SECURITY.md docker.sock section. |
+| File                                         | Responsibility after this change                                                                                                                                                                                  |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/runner.ts`                | Spawn `claude` + stream NDJSON. Holds `resolveRunner`, `resolveSandboxNet`, `buildSandboxSettings`, `buildClaudeArgs`, `runStage`, `streamClaude`, `parseGraceMs`, `resolveModelArgs`, `stageLogPath`. No Docker. |
+| `packages/core/src/loop.ts`                  | Iteration driver. No `ensureImage`, no `ralphDir`.                                                                                                                                                                |
+| `packages/core/src/run-bin.ts`               | Resolve dirs (no `ralphDir`), drive `runLoop`.                                                                                                                                                                    |
+| `packages/core/src/cli-help.ts`              | Flags + `--help`/`--print-config` (runner/sandbox-net, no Docker).                                                                                                                                                |
+| `packages/core/src/stages.ts`                | Stage table; updated blast-radius comment.                                                                                                                                                                        |
+| `packages/core/src/index.ts`                 | Public exports (drop `ensureImage`).                                                                                                                                                                              |
+| `packages/core/templates/{prompt,review}.md` | Playbooks minus the MSB3248 virtiofs workaround.                                                                                                                                                                  |
+| Deleted                                      | `templates/Dockerfile`, `templates/CHANGELOG.md`, `.github/workflows/publish-image.yml`, release-please `ralph-sandbox` component, SECURITY.md docker.sock section.                                               |
 
 ---
 
@@ -34,6 +34,7 @@
 - [ ] **Step 1: Confirm `--settings` accepts a path and discover sandbox keys**
 
 Run:
+
 ```bash
 claude --help 2>&1 | grep -iE "settings|sandbox|permission-mode" || echo "no match"
 claude --version
@@ -42,6 +43,7 @@ claude --version
 - [x] **Step 2: Record the decision rules** — RESOLVED 2026-06-14 (claude 2.1.177)
 
 Findings (from `claude --help` + https://code.claude.com/docs/en/sandboxing.md):
+
 1. **`--settings <file-or-json>` accepts a file path.** Use a temp-file path (plan unchanged).
 2. **Network default = no block.** No domains are pre-allowed; a sandboxed command needing a non-allowed host **falls back to the regular permission flow**, which under `--permission-mode bypassPermissions` auto-approves and runs the command **unsandboxed** (the `allowUnsandboxedCommands` escape hatch is ON by default). So `npm install`/`dotnet restore` do **not** hang — they run unsandboxed. Filesystem confinement is the blast-radius control. → `resolveSandboxNet` keeps `[]` default (no `network` block); `RALPH_SANDBOX_NET` is the opt-in allowlist. Do **not** set `allowUnsandboxedCommands: false` (would break network commands).
 3. **macOS Go-TLS gotcha:** `gh`/`gcloud`/`terraform` fail TLS under Seatbelt → bake `excludedCommands: ["gh *","gcloud *","terraform *"]` into the default settings (Task 2 updated).
@@ -52,6 +54,7 @@ Findings (from `claude --help` + https://code.claude.com/docs/en/sandboxing.md):
 ## Task 2: Runner-selection + sandbox-settings helpers (TDD)
 
 **Files:**
+
 - Modify: `packages/core/src/runner.ts`
 - Test: `packages/core/src/__tests__/runner.test.ts`
 
@@ -118,7 +121,7 @@ describe("buildSandboxSettings", () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- runner`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- runner`
 Expected: FAIL — `resolveRunner`/`resolveSandboxNet`/`buildSandboxSettings` are not exported.
 
 - [ ] **Step 3: Implement the helpers**
@@ -171,7 +174,7 @@ export function buildSandboxSettings(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- runner`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- runner`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -186,6 +189,7 @@ git commit -m "feat(runner): add runner-selection + sandbox-settings helpers"
 ## Task 3: Teach `buildClaudeArgs` to inject `--settings` (TDD)
 
 **Files:**
+
 - Modify: `packages/core/src/runner.ts:392-412`
 - Test: `packages/core/src/__tests__/runner.test.ts`
 
@@ -194,24 +198,24 @@ git commit -m "feat(runner): add runner-selection + sandbox-settings helpers"
 Add inside the existing `describe("buildClaudeArgs", …)` block:
 
 ```ts
-  it("injects --settings before the prompt when a settings path is given", () => {
-    const args = buildClaudeArgs(stage, promptPath, [], "/ws/.ralph-tmp/s.json");
-    const sIdx = args.indexOf("--settings");
-    expect(sIdx).toBeGreaterThan(-1);
-    expect(args[sIdx + 1]).toBe("/ws/.ralph-tmp/s.json");
-    const promptIdx = args.findIndex((a) => a.includes(promptPath));
-    expect(sIdx).toBeLessThan(promptIdx);
-  });
+it("injects --settings before the prompt when a settings path is given", () => {
+  const args = buildClaudeArgs(stage, promptPath, [], "/ws/.ralph-tmp/s.json");
+  const sIdx = args.indexOf("--settings");
+  expect(sIdx).toBeGreaterThan(-1);
+  expect(args[sIdx + 1]).toBe("/ws/.ralph-tmp/s.json");
+  const promptIdx = args.findIndex((a) => a.includes(promptPath));
+  expect(sIdx).toBeLessThan(promptIdx);
+});
 
-  it("omits --settings when no settings path is given", () => {
-    const args = buildClaudeArgs(stage, promptPath, []);
-    expect(args).not.toContain("--settings");
-  });
+it("omits --settings when no settings path is given", () => {
+  const args = buildClaudeArgs(stage, promptPath, []);
+  expect(args).not.toContain("--settings");
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- runner`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- runner`
 Expected: FAIL — `buildClaudeArgs` ignores the 4th arg.
 
 - [ ] **Step 3: Update `buildClaudeArgs`**
@@ -248,7 +252,7 @@ export function buildClaudeArgs(
 
 - [ ] **Step 4: Run to verify all `buildClaudeArgs` tests pass**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- runner`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- runner`
 Expected: PASS (existing argv tests unaffected — `--settings` slots between `--permission-mode` and `--model`).
 
 - [ ] **Step 5: Commit**
@@ -263,6 +267,7 @@ git commit -m "feat(runner): inject --settings into the claude argv"
 ## Task 4: Rewrite `runStage` to spawn `claude` (replace `streamDocker`)
 
 **Files:**
+
 - Modify: `packages/core/src/runner.ts:414-633`
 
 No new unit test (these are integration-spawning paths; covered by the loop tests + the smoke test in Task 13). The pure argv/settings logic is already tested in Tasks 2–3.
@@ -363,7 +368,7 @@ Apply the same `finalResult`/grace-timer/abort/readline/close logic verbatim fro
 
 - [ ] **Step 3: Verify typecheck (will still error until Task 5 deletes the now-orphaned Docker code)**
 
-Run: `pnpm --filter @daonhan/ralph-core typecheck`
+Run: `pnpm --filter @phamvuhoang/ralph-core typecheck`
 Expected: errors ONLY about unused Docker symbols (`spawnSync`, `statSync`, etc.) — resolved in Task 5. Do not commit yet; bundle with Task 5.
 
 ---
@@ -371,6 +376,7 @@ Expected: errors ONLY about unused Docker symbols (`spawnSync`, `statSync`, etc.
 ## Task 5: Delete the Docker plumbing from `runner.ts` + fix exports
 
 **Files:**
+
 - Modify: `packages/core/src/runner.ts`
 - Modify: `packages/core/src/index.ts:6`
 
@@ -381,6 +387,7 @@ Remove entirely: `IMAGE_REF`, `dockerSockWarned`, `detectDockerSocketPath`, `par
 - [ ] **Step 2: Prune now-unused imports**
 
 Update the top-of-file imports so only what remains is imported:
+
 - `node:child_process` → `{ spawn }` (drop `spawnSync`).
 - `node:fs` → `{ appendFileSync, closeSync, mkdirSync, openSync, rmSync, writeFileSync }` (drop `existsSync`, `statSync`).
 - `./stream-render.js` → `{ dim, renderEvent, SYM, type StreamJson, type ToolTrack }` — drop `bold`, `red` if no longer referenced (they were only used by the removed docker.sock warning). Verify with a grep below.
@@ -396,10 +403,12 @@ export { runStage } from "./runner.js";
 - [ ] **Step 4: Verify no dangling references**
 
 Run:
+
 ```bash
 grep -rnE "ensureImage|IMAGE_REF|resolveDockerfile|detectDockerSocketPath|resolveDockerSocketMount|isFloatingRef" packages/core/src apps/cli || echo "clean"
-pnpm --filter @daonhan/ralph-core typecheck
+pnpm --filter @phamvuhoang/ralph-core typecheck
 ```
+
 Expected: `clean` from grep (except matches inside `cli-help.ts`/`loop.ts`, fixed in Tasks 6–8) and typecheck passes once those are done. If `cli-help.ts`/`loop.ts` still reference them, proceed to Tasks 6–8 before committing.
 
 - [ ] **Step 5: Commit (bundled with Task 4)**
@@ -414,6 +423,7 @@ git commit -m "refactor(runner): spawn claude on the host, delete all docker plu
 ## Task 6: Drop `ensureImage`/`ralphDir` from the loop (TDD)
 
 **Files:**
+
 - Modify: `packages/core/src/loop.ts`
 - Modify: `packages/core/src/__tests__/loop.test.ts`
 
@@ -428,59 +438,59 @@ In `loop.test.ts`:
 (c) Replace the test `"acquires the wake-lock before image setup and releases on completion"` (lines 117–135) with:
 
 ```ts
-  it("acquires the wake-lock and releases on completion", async () => {
-    const dirs = makeDirs();
-    roots.push(dirs.root);
-    mocks.runStage.mockResolvedValue(sentinel);
+it("acquires the wake-lock and releases on completion", async () => {
+  const dirs = makeDirs();
+  roots.push(dirs.root);
+  mocks.runStage.mockResolvedValue(sentinel);
 
-    await runLoop(loopOptions(dirs, { notify: true }));
+  await runLoop(loopOptions(dirs, { notify: true }));
 
-    expect(mocks.acquire).toHaveBeenCalledTimes(1);
-    expect(mocks.runStage).toHaveBeenCalledTimes(1);
-    expect(mocks.release).toHaveBeenCalledTimes(1);
-    expect(mocks.notifyComplete).toHaveBeenCalledWith(1, true);
-  });
+  expect(mocks.acquire).toHaveBeenCalledTimes(1);
+  expect(mocks.runStage).toHaveBeenCalledTimes(1);
+  expect(mocks.release).toHaveBeenCalledTimes(1);
+  expect(mocks.notifyComplete).toHaveBeenCalledWith(1, true);
+});
 ```
 
 (d) Replace the test `"aborts image setup and releases the wake-lock on SIGTERM"` (lines 265–295) with a SIGTERM-aborts-active-stage test mirroring the SIGINT one:
 
 ```ts
-  it("aborts the active stage and releases the wake-lock on SIGTERM", async () => {
-    const dirs = makeDirs();
-    roots.push(dirs.root);
-    const exit = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`exit ${code}`);
-    }) as never);
-    let capturedSignal: AbortSignal | undefined;
-    mocks.runStage.mockImplementation(
-      (_stage, _prompt, _workspace, _iteration, _spill, _log, options) => {
-        capturedSignal = options.signal;
-        return new Promise((_resolve, reject) => {
-          capturedSignal!.addEventListener("abort", () =>
-            reject(new Error("aborted"))
-          );
-        });
-      }
-    );
+it("aborts the active stage and releases the wake-lock on SIGTERM", async () => {
+  const dirs = makeDirs();
+  roots.push(dirs.root);
+  const exit = vi.spyOn(process, "exit").mockImplementation(((
+    code?: number
+  ) => {
+    throw new Error(`exit ${code}`);
+  }) as never);
+  let capturedSignal: AbortSignal | undefined;
+  mocks.runStage.mockImplementation(
+    (_stage, _prompt, _workspace, _iteration, _spill, _log, options) => {
+      capturedSignal = options.signal;
+      return new Promise((_resolve, reject) => {
+        capturedSignal!.addEventListener("abort", () =>
+          reject(new Error("aborted"))
+        );
+      });
+    }
+  );
 
-    const loop = runLoop(loopOptions(dirs, { maxRetries: 0 }));
-    await Promise.resolve();
-    await Promise.resolve();
+  const loop = runLoop(loopOptions(dirs, { maxRetries: 0 }));
+  await Promise.resolve();
+  await Promise.resolve();
 
-    expect(capturedSignal?.aborted).toBe(false);
-    expect(() => process.emit("SIGTERM")).toThrow("exit 143");
-    expect(capturedSignal?.aborted).toBe(true);
-    await loop;
-    expect(mocks.release).toHaveBeenCalledTimes(1);
-    expect(exit).toHaveBeenCalledWith(143);
-  });
+  expect(capturedSignal?.aborted).toBe(false);
+  expect(() => process.emit("SIGTERM")).toThrow("exit 143");
+  expect(capturedSignal?.aborted).toBe(true);
+  await loop;
+  expect(mocks.release).toHaveBeenCalledTimes(1);
+  expect(exit).toHaveBeenCalledWith(143);
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- loop`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- loop`
 Expected: FAIL — `runLoop` still calls `ensureImage` / `LoopOptions` still requires `ralphDir`.
 
 - [ ] **Step 3: Update `loop.ts`**
@@ -495,7 +505,7 @@ Expected: FAIL — `runLoop` still calls `ensureImage` / `LoopOptions` still req
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `pnpm --filter @daonhan/ralph-core test -- loop`
+Run: `pnpm --filter @phamvuhoang/ralph-core test -- loop`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -510,6 +520,7 @@ git commit -m "refactor(loop): drop image setup and ralphDir; sandbox needs no i
 ## Task 7: Drop `ralphDir`/`RALPH_DOCKER_CONTEXT` from `run-bin.ts`
 
 **Files:**
+
 - Modify: `packages/core/src/run-bin.ts`
 
 - [ ] **Step 1: Remove the ralphDir resolution + pass-through**
@@ -519,21 +530,21 @@ git commit -m "refactor(loop): drop image setup and ralphDir; sandbox needs no i
 (b) Update the `printConfig` call (lines 62–70) to drop the `ralphDir` argument:
 
 ```ts
-    printConfig(cfg.bin, workspaceDir, packageDir, {
-      cliVersion: cfg.cliVersion,
-      noKeepAlive: flags.noKeepAlive,
-      maxRetries: flags.maxRetries,
-      detach: flags.detach,
-      detachLogPath,
-      notify: flags.notify,
-    });
+printConfig(cfg.bin, workspaceDir, packageDir, {
+  cliVersion: cfg.cliVersion,
+  noKeepAlive: flags.noKeepAlive,
+  maxRetries: flags.maxRetries,
+  detach: flags.detach,
+  detachLogPath,
+  notify: flags.notify,
+});
 ```
 
 (c) In the `runLoop({…})` call (lines 94–106), delete the `ralphDir,` line.
 
 - [ ] **Step 2: Typecheck**
 
-Run: `pnpm --filter @daonhan/ralph-core typecheck`
+Run: `pnpm --filter @phamvuhoang/ralph-core typecheck`
 Expected: errors only in `cli-help.ts` (printConfig signature) — fixed next. Do not commit until Task 8.
 
 ---
@@ -541,6 +552,7 @@ Expected: errors only in `cli-help.ts` (printConfig signature) — fixed next. D
 ## Task 8: Update `cli-help.ts` (`--print-config` + `--help`)
 
 **Files:**
+
 - Modify: `packages/core/src/cli-help.ts`
 
 - [ ] **Step 1: Remove Docker imports**
@@ -569,7 +581,8 @@ export function printConfig(
   const core = readCoreVersion();
   const cli = cliVersion ?? "?";
 
-  const runner = process.env.RALPH_RUNNER?.trim() === "host" ? "host" : "sandbox";
+  const runner =
+    process.env.RALPH_RUNNER?.trim() === "host" ? "host" : "sandbox";
   const rawNet = process.env.RALPH_SANDBOX_NET?.trim();
   const netStatus =
     runner === "host"
@@ -637,6 +650,7 @@ git commit -m "refactor(cli): print runner/sandbox config; drop docker env + fla
 ## Task 9: Update the `stages.ts` blast-radius comment
 
 **Files:**
+
 - Modify: `packages/core/src/stages.ts:7-15`
 
 - [ ] **Step 1: Replace the comment block**
@@ -666,16 +680,17 @@ git commit -m "docs(stages): describe sandbox/host runner blast radius"
 ## Task 10: Remove the MSB3248 virtiofs workaround from the playbooks
 
 **Files:**
+
 - Modify: `packages/core/templates/prompt.md:48-60`
 - Modify: `packages/core/templates/review.md:44` (the parenthetical)
 
 - [ ] **Step 1: Delete the workaround from `prompt.md`**
 
-Remove the block starting `**If \`dotnet test\` or \`dotnet build\` fails with MSB3248** …` through the closing fenced code block and the "Only if that second attempt also fails …" line (lines 49–60). Leave the `### Backend / Dotnet` bullets (`dotnet test`, `dotnet build`) intact.
+Remove the block starting `**If \`dotnet test\` or \`dotnet build\` fails with MSB3248\*\* …`through the closing fenced code block and the "Only if that second attempt also fails …" line (lines 49–60). Leave the`### Backend / Dotnet` bullets (`dotnet test`, `dotnet build`) intact.
 
 - [ ] **Step 2: Simplify the `review.md` dotnet line**
 
-Change `\`dotnet test\`, \`dotnet build\` (apply MSB3248 workaround from the implementer playbook if it triggers)` → `\`dotnet test\`, \`dotnet build\``.
+Change `\`dotnet test\`, \`dotnet build\` (apply MSB3248 workaround from the implementer playbook if it triggers)`→`\`dotnet test\`, \`dotnet build\``.
 
 - [ ] **Step 3: Commit**
 
@@ -689,6 +704,7 @@ git commit -m "docs(templates): drop MSB3248 virtiofs workaround (no docker moun
 ## Task 11: Delete the image, Dockerfile, and CI
 
 **Files:**
+
 - Delete: `packages/core/templates/Dockerfile`
 - Delete: `packages/core/templates/CHANGELOG.md`
 - Delete: `.github/workflows/publish-image.yml`
@@ -698,11 +714,13 @@ git commit -m "docs(templates): drop MSB3248 virtiofs workaround (no docker moun
 - [ ] **Step 1: Inspect release config + package files**
 
 Run:
+
 ```bash
 grep -rln "ralph-sandbox\|Dockerfile\|publish-image\|templates/CHANGELOG" \
   release-please-config.json .release-please-manifest.json .github packages/core/package.json 2>/dev/null
 cat packages/core/package.json | grep -nA6 '"files"'
 ```
+
 Expected: identifies the release-please component entry + manifest version line for `packages/core/templates` (image) and the `files` array entry.
 
 - [ ] **Step 2: Delete files**
@@ -718,9 +736,11 @@ In `release-please-config.json`, delete the `"packages/core/templates"` (a.k.a. 
 - [ ] **Step 4: Verify nothing else references the image build**
 
 Run:
+
 ```bash
 grep -rn "ralph-sandbox\|publish-image\|docker build\|RALPH_DOCKER" .github release-please-config.json .release-please-manifest.json packages apps || echo "clean"
 ```
+
 Expected: only doc-prose matches remain (handled in Task 12), no config/CI wiring.
 
 - [ ] **Step 5: Commit**
@@ -735,11 +755,13 @@ git commit -m "chore: remove sandbox image, Dockerfile, and image CI/release wir
 ## Task 12: Update prose docs
 
 **Files:**
+
 - Modify: `CLAUDE.md`, `README.md`, `docs/ARCHITECTURE.md`, `RELEASING.md`, `SECURITY.md`
 
 - [ ] **Step 1: Find every Docker mention**
 
 Run:
+
 ```bash
 grep -rniE "docker|ralph-sandbox|RALPH_IMAGE|RALPH_DOCKER|container|dockerfile|docker.sock|bind-mount" \
   CLAUDE.md README.md RELEASING.md SECURITY.md docs/ARCHITECTURE.md
@@ -748,19 +770,22 @@ grep -rniE "docker|ralph-sandbox|RALPH_IMAGE|RALPH_DOCKER|container|dockerfile|d
 - [ ] **Step 2: Rewrite each hit to the host/sandbox model**
 
 For each file, replace the Docker runtime description with: "Ralph runs `claude` directly on the host; the default `RALPH_RUNNER=sandbox` uses Claude Code's native OS sandbox (writes confined to the workspace), `RALPH_RUNNER=host` runs unsandboxed." Specifically:
+
 - **CLAUDE.md** — "What this repo is", the `runStage`/`ensureImage`/runner bullets, the env-knob list (drop `RALPH_IMAGE`/`RALPH_DOCKER_*`, add `RALPH_RUNNER`/`RALPH_SANDBOX_NET`), "Credential mounts" → "Credentials" (host reads `~/.claude`, `~/.config/gh` natively), the "Building / publishing the sandbox image" section (delete), "Sandbox image" (delete).
 - **README.md** — install/first-run no longer needs Docker; remove image pull/build troubleshooting; document `RALPH_RUNNER`/`RALPH_SANDBOX_NET`; keep the macOS Seatbelt note.
 - **docs/ARCHITECTURE.md** — runtime model: spawn `claude` not `docker run`; remove the image-lifecycle + socket sections.
-- **RELEASING.md** — remove the image release component; releases are npm-only now (`@daonhan/ralph-core` + `@daonhan/ralph`).
+- **RELEASING.md** — remove the image release component; releases are npm-only now (`@phamvuhoang/ralph-core` + `@phamvuhoang/ralph`).
 - **SECURITY.md** — replace the docker.sock blast-radius section with the sandbox/host blast-radius description.
 
 - [ ] **Step 3: Verify**
 
 Run:
+
 ```bash
 grep -rniE "RALPH_IMAGE|RALPH_DOCKER|ralph-sandbox|docker run|docker pull|docker.sock" \
   CLAUDE.md README.md RELEASING.md SECURITY.md docs/ARCHITECTURE.md || echo "clean"
 ```
+
 Expected: `clean` (any surviving "docker" mention should only be e.g. "Docker is no longer required").
 
 - [ ] **Step 4: Commit**
@@ -779,26 +804,32 @@ git commit -m "docs: describe host-first native-sandbox runner; remove docker do
 - [ ] **Step 1: Run the full verification gate**
 
 Run:
+
 ```bash
 pnpm -r build && pnpm -r typecheck && pnpm -r test && pnpm test
 ```
+
 Expected: all green. (`pnpm test` at root runs `node --test scripts/*.test.mjs`.)
 
 - [ ] **Step 2: Confirm no Docker references remain in shipped code**
 
 Run:
+
 ```bash
 grep -rnE "docker|ensureImage|IMAGE_REF" packages/core/src apps/cli || echo "clean"
 ```
+
 Expected: `clean`.
 
 - [ ] **Step 3: Manual smoke test (sandbox runner, no Docker)**
 
 In a throwaway git repo with a trivial plan file, with `claude` authenticated:
+
 ```bash
 cd /tmp && rm -rf ralph-smoke && mkdir ralph-smoke && cd ralph-smoke && git init -q && echo "# plan: create HELLO.md containing 'hi'" > plan.md && git add -A && git commit -qm init
 RALPH_WORKSPACE=/tmp/ralph-smoke ralph-afk "Read plan.md and do it" 1
 ```
+
 Expected: a stage runs with **no `docker` process** (confirm `docker ps` shows nothing new / `pgrep -fl docker` unchanged), `HELLO.md` is created, and a commit lands. Inspect `/tmp/ralph-smoke/.ralph-tmp/logs/*.ndjson` for the stream and confirm a `.sandbox-*.json` was written + cleaned.
 
 - [ ] **Step 4: Smoke test the `host` runner**
@@ -806,6 +837,7 @@ Expected: a stage runs with **no `docker` process** (confirm `docker ps` shows n
 ```bash
 RALPH_RUNNER=host RALPH_WORKSPACE=/tmp/ralph-smoke ralph-afk --print-config "x" 1
 ```
+
 Expected: `--print-config` prints `RALPH_RUNNER  host` and `sandbox network  n/a (host runner)`.
 
 - [ ] **Step 5: Final commit (if any doc tweaks fell out of smoke testing)**

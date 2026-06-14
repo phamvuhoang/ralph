@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Ralph ships three independent artifacts: the `@daonhan/ralph-core` npm package, the `@daonhan/ralph` CLI npm package, and the `docker.io/daonhan/ralph-sandbox` image. Today, releasing any of them is partly manual and partly accidental:
+Ralph ships three independent artifacts: the `@phamvuhoang/ralph-core` npm package, the `@phamvuhoang/ralph` CLI npm package, and the `docker.io/phamvuhoang/ralph-sandbox` image. Today, releasing any of them is partly manual and partly accidental:
 
 - `packages/core` auto-publishes on any push to `main` that touches `packages/core/**` — but only if the maintainer remembers to bump `version` in the package.json by hand.
 - `apps/cli` does **not** publish at all from CI. There is no workflow trigger for it, so the CLI version (currently `0.1.0`) lags `ralph-core` (`0.1.1`) silently.
@@ -38,8 +38,8 @@ The result: a contributor writes `feat:` / `fix:` commits as they already do, a 
 7. As a maintainer, I want a status table in `RELEASING.md` showing the currently-published version of each component, the release date, and the tag link, so that I can verify state at a glance.
 8. As a maintainer, I want the status table to be auto-updated by the release-please PR, so that I never have to keep it in sync by hand.
 9. As a maintainer, I want a `RELEASING.md` runbook that documents how a release is cut, so that a future contributor or LLM agent can ship without paging me.
-10. As a user of `@daonhan/ralph`, I want a `CHANGELOG.md` entry per release explaining what changed, so that I can decide whether to upgrade.
-11. As a user of `@daonhan/ralph`, I want the changelog grouped by `feat:` / `fix:` / `chore:` headings, so that I can scan for breaking changes quickly.
+10. As a user of `@phamvuhoang/ralph`, I want a `CHANGELOG.md` entry per release explaining what changed, so that I can decide whether to upgrade.
+11. As a user of `@phamvuhoang/ralph`, I want the changelog grouped by `feat:` / `fix:` / `chore:` headings, so that I can scan for breaking changes quickly.
 12. As an operator running the AFK loop in production, I want every published image to have an immutable `sha256:…` digest documented in the GH Release, so that I can pin my deployments reproducibly.
 13. As an operator, I want a compatibility matrix in `RELEASING.md`, so that I know which CLI version works with which core version and which image tag.
 14. As a security-conscious user, I want each published artifact to have an SBOM attached to the GH Release, so that I can audit my supply chain.
@@ -79,7 +79,7 @@ The result: a contributor writes `feat:` / `fix:` commits as they already do, a 
 
 - **`.github/workflows/release-please.yml`** — runs on `push` to `main`. Uses `googleapis/release-please-action@v4`. Outputs the set of `released` flags and per-component tag names for downstream conditional steps. Single concurrency group `release-please-${{ github.ref }}`.
 - **`.github/workflows/publish-npm.yml`** — rewritten. Trigger is `push: tags: ['ralph-core-v*', 'ralph-v*']`. A single job inspects `${GITHUB_REF_NAME}` to decide whether to publish `packages/core` or `apps/cli`. Existing path-based push trigger is removed (release-please owns the "when to release" decision). `pnpm install --frozen-lockfile` + `pnpm -r build` + `JS-DevTools/npm-publish` continue to power the actual publish step.
-- **`.github/workflows/publish-image.yml`** — rewritten. Trigger is `push: tags: ['ralph-sandbox-v*']` (the existing `image-v*` trigger is retained for one release as a compatibility shim, then removed in a follow-up). `workflow_dispatch` retained for emergency rebuilds. After push, the workflow reads the image digest from the buildx output and calls `gh release edit` to append `Image: docker.io/daonhan/ralph-sandbox@sha256:…` to the release body.
+- **`.github/workflows/publish-image.yml`** — rewritten. Trigger is `push: tags: ['ralph-sandbox-v*']` (the existing `image-v*` trigger is retained for one release as a compatibility shim, then removed in a follow-up). `workflow_dispatch` retained for emergency rebuilds. After push, the workflow reads the image digest from the buildx output and calls `gh release edit` to append `Image: docker.io/phamvuhoang/ralph-sandbox@sha256:…` to the release body.
 - **`.github/workflows/release-artifacts.yml`** (new, optional consolidation) — triggered after a publish workflow succeeds via `workflow_run`. Runs `pnpm pack`, uploads the `.tgz` to the GH Release, runs `syft` to produce an SBOM, calls `cosign` to attest. May be folded into the publish workflows directly if the `workflow_run` indirection complicates failures; final placement is an implementation-time call.
 
 ### Status table
@@ -101,7 +101,7 @@ The result: a contributor writes `feat:` / `fix:` commits as they already do, a 
 
 ### Migration
 
-- Existing artifacts (`@daonhan/ralph-core@0.1.1`, `@daonhan/ralph@0.1.0`, `image-v0.1.1`) are preserved. The manifest is seeded with those versions so release-please's first PR proposes bumps from those baselines.
+- Existing artifacts (`@phamvuhoang/ralph-core@0.1.1`, `@phamvuhoang/ralph@0.1.0`, `image-v0.1.1`) are preserved. The manifest is seeded with those versions so release-please's first PR proposes bumps from those baselines.
 - `docs/PUBLISHING.md` is superseded by `RELEASING.md`. The old file is replaced with a one-line pointer to the new doc to avoid breaking external links.
 
 ## Testing Decisions

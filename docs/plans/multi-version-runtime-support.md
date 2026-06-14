@@ -15,7 +15,7 @@ Durable decisions that apply across all phases. Touch these only with a follow-u
   - `RALPH_NODE` — optional. Exact version, major, or alias (`"lts"`). Unset means use baked default.
   - `RALPH_DOTNET` — optional. Exact version or `major.minor`. Unset means use baked default.
   - `RALPH_MISE_VOLUME` — optional. Override the cache volume name.
-- **Detection module contract**: `detectVersions(workspaceDir: string) → { node?: string; dotnet?: string; sources: { node?: ManifestSource; dotnet?: ManifestSource }; warnings: string[] }`. Pure, no spawn, no network. Lives in `@daonhan/ralph-core`. Called exactly once per `runLoop` invocation, before the iteration loop.
+- **Detection module contract**: `detectVersions(workspaceDir: string) → { node?: string; dotnet?: string; sources: { node?: ManifestSource; dotnet?: ManifestSource }; warnings: string[] }`. Pure, no spawn, no network. Lives in `@phamvuhoang/ralph-core`. Called exactly once per `runLoop` invocation, before the iteration loop.
 - **Detection precedence** (most specific wins; first hit short-circuits):
   - Node: `.tool-versions` → `.mise.toml` → `.nvmrc` → `.node-version` → `package.json` `engines.node`
   - .NET: `global.json` (`sdk.version`) → `.csproj` `<TargetFramework>` (whole-repo scan, excluding `node_modules`, `bin`, `obj`)
@@ -41,9 +41,9 @@ No host-side detection yet — the user supplies `RALPH_NODE` / `RALPH_DOTNET` m
 - [ ] Entrypoint shim reads `RALPH_NODE` / `RALPH_DOTNET`, activates Node via mise (using the baked path), validates the requested dotnet SDK is present (warns and falls back otherwise), then `exec`s the claude CLI.
 - [ ] Runner.ts forwards `RALPH_NODE` / `RALPH_DOTNET` from `process.env` into the container when set. No volume mount yet.
 - [ ] CI workflow publishes a multi-arch (`linux/amd64,linux/arm64`) image as `:v2-alpha` on `workflow_dispatch`. `:latest` is untouched.
-- [ ] Manual smoke: `docker run --rm -e RALPH_NODE=20 daonhan/ralph-sandbox:v2-alpha node --version` prints `v20.x.x`.
-- [ ] Manual smoke: `docker run --rm -e RALPH_DOTNET=8.0 daonhan/ralph-sandbox:v2-alpha dotnet --list-sdks` lists 8.0, 9.0, 10.0.
-- [ ] Manual smoke: `RALPH_NODE=20 RALPH_IMAGE=daonhan/ralph-sandbox:v2-alpha ralph-afk --print-config` shows the correct image ref; a real iteration against a Node-20 toy repo completes one round.
+- [ ] Manual smoke: `docker run --rm -e RALPH_NODE=20 phamvuhoang/ralph-sandbox:v2-alpha node --version` prints `v20.x.x`.
+- [ ] Manual smoke: `docker run --rm -e RALPH_DOTNET=8.0 phamvuhoang/ralph-sandbox:v2-alpha dotnet --list-sdks` lists 8.0, 9.0, 10.0.
+- [ ] Manual smoke: `RALPH_NODE=20 RALPH_IMAGE=phamvuhoang/ralph-sandbox:v2-alpha ralph-afk --print-config` shows the correct image ref; a real iteration against a Node-20 toy repo completes one round.
 - [ ] Claude CLI still launches successfully when mise activates a non-base Node (open risk #2 in the PRD — verify and pin if necessary).
 - [ ] `pnpm -r build && pnpm -r typecheck` clean.
 
@@ -61,11 +61,11 @@ This phase is intentionally narrow on parsers but full-breadth on plumbing: the 
 
 ### Acceptance criteria
 
-- [ ] `detect` module exists in `@daonhan/ralph-core` with the interface defined in Architectural Decisions. Implemented parsers: `.nvmrc` and `global.json`. All other manifest sources return undefined.
+- [ ] `detect` module exists in `@phamvuhoang/ralph-core` with the interface defined in Architectural Decisions. Implemented parsers: `.nvmrc` and `global.json`. All other manifest sources return undefined.
 - [ ] `runLoop` calls `detectVersions(workspaceDir)` once before the iteration loop. Result is threaded through `LoopOptions` (or equivalent) into `runStage`, which sets the env vars.
 - [ ] On detection success, the first iteration's NDJSON stream contains a line of shape `runtime: node <ver> (.nvmrc), dotnet <ver> (global.json)` (or partial when only one detected).
 - [ ] On total miss, a `[sandcastle] warning: no runtime manifest found, falling back to baked default` line is emitted to stderr. Iteration continues normally.
-- [ ] vitest is added to `packages/core` devDependencies; `pnpm --filter @daonhan/ralph-core test` runs and passes. Vitest is excluded from the npm tarball's `files` array.
+- [ ] vitest is added to `packages/core` devDependencies; `pnpm --filter @phamvuhoang/ralph-core test` runs and passes. Vitest is excluded from the npm tarball's `files` array.
 - [ ] Test cases: `.nvmrc` containing `20.11.1`, `v20.11.1`, `20`, and a blank file; `global.json` with valid `sdk.version`, with malformed JSON, with missing `sdk.version`; total-miss directory.
 - [ ] Manual smoke: a temp repo with `.nvmrc=20` and no other manifests, run via `:v2-alpha`, produces a container with Node 20 active.
 - [ ] Manual smoke: a temp repo with `global.json` pinning `sdk.version: "8.0.404"` activates .NET 8 in-container.
@@ -125,7 +125,7 @@ Make non-baked Node versions usable without a full image rebuild. The entrypoint
 
 ### What to build
 
-Operationalize the rollout. After a soak period on `:v2-alpha`, retag to `:v2`, then promote `:v2` to also tag `:latest`. Expose a `runtime_tag` workflow input so baked-version bumps can be cut independently of CLI version bumps. Document the runtime-detection behavior in the README. Bump `@daonhan/ralph-core` minor version.
+Operationalize the rollout. After a soak period on `:v2-alpha`, retag to `:v2`, then promote `:v2` to also tag `:latest`. Expose a `runtime_tag` workflow input so baked-version bumps can be cut independently of CLI version bumps. Document the runtime-detection behavior in the README. Bump `@phamvuhoang/ralph-core` minor version.
 
 ### Acceptance criteria
 
@@ -134,6 +134,6 @@ Operationalize the rollout. After a soak period on `:v2-alpha`, retag to `:v2`, 
 - [ ] `:v2-alpha` is retagged to `:v2` via the publish workflow.
 - [ ] `:v2` is promoted: a subsequent workflow run also tags it `:latest`. `:v1` remains on Docker Hub as the escape hatch.
 - [ ] README gains a "Runtime detection" section explaining the supported manifests, the precedence rules, the env-var override knobs, and the lazy-install behavior.
-- [ ] `@daonhan/ralph-core` `package.json` minor version bumped. CLI package `package.json` updated to depend on the new core version. `pnpm publish-all` dry-run is clean.
+- [ ] `@phamvuhoang/ralph-core` `package.json` minor version bumped. CLI package `package.json` updated to depend on the new core version. `pnpm publish-all` dry-run is clean.
 - [ ] `docs/PUBLISHING.md` updated with the new runtime-tag input and the soak-then-promote flow.
 - [ ] No code change to `IMAGE_REF` default needed — `:latest` naturally inherits the promoted image.
