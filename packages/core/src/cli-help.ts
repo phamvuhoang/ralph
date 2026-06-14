@@ -18,8 +18,41 @@ export type CliFlags = {
   reviewPanel: boolean;
   watch: boolean;
   watchIntervalSec?: number;
+  issue?: number;
   rest: string[];
 };
+
+/**
+ * Normalize a user-supplied issue reference to a positive integer.
+ * Accepts: `42`, `#42`, `owner/repo#42`, and GitHub issue URLs
+ * (`https://github.com/owner/repo/issues/42[#anchor]`). A repo component is
+ * ignored — only the number is used (gh resolves the repo from the workspace).
+ * Throws on anything that is not a positive integer.
+ *
+ * SECURITY: the returned integer is the ONLY part of the ref that may reach a
+ * shell (via the RALPH_ISSUE env var read by a static template command). Never
+ * pass the raw ref to a shell. See render.ts security invariant.
+ */
+export function parseIssueRef(raw: string): number {
+  const s = raw.trim();
+  let token = s;
+  const urlMatch = s.match(/\/issues\/(\d+)(?:[#?].*)?$/);
+  if (urlMatch) {
+    token = urlMatch[1];
+  } else if (s.includes("#")) {
+    token = s.slice(s.lastIndexOf("#") + 1);
+  }
+  if (!/^[1-9]\d*$/.test(token)) {
+    throw new Error(
+      `--issue must be a positive issue number, #N, owner/repo#N, or a GitHub issue URL, got: ${JSON.stringify(raw)}`
+    );
+  }
+  const n = Number.parseInt(token, 10);
+  if (!Number.isSafeInteger(n)) {
+    throw new Error(`--issue number is too large, got: ${JSON.stringify(raw)}`);
+  }
+  return n;
+}
 
 export function parseFlags(argv: string[]): CliFlags {
   let help = false;
@@ -40,6 +73,8 @@ export function parseFlags(argv: string[]): CliFlags {
   let watch = false;
   let watchIntervalSec: number | undefined;
   let expectingWatchInterval = false;
+  let issue: number | undefined;
+  let expectingIssue = false;
   const rest: string[] = [];
   for (const a of argv) {
     if (expectingMaxRetries) {
@@ -88,6 +123,11 @@ export function parseFlags(argv: string[]): CliFlags {
       expectingWatchInterval = false;
       continue;
     }
+    if (expectingIssue) {
+      issue = parseIssueRef(a);
+      expectingIssue = false;
+      continue;
+    }
     if (a === "-h" || a === "--help") help = true;
     else if (a === "-V" || a === "--version") version = true;
     else if (a === "--print-config") printConfig = true;
@@ -101,6 +141,7 @@ export function parseFlags(argv: string[]): CliFlags {
     else if (a === "--review-panel") reviewPanel = true;
     else if (a === "--watch") watch = true;
     else if (a === "--watch-interval") expectingWatchInterval = true;
+    else if (a === "--issue") expectingIssue = true;
     else rest.push(a);
   }
   if (expectingMaxRetries) {
@@ -117,6 +158,9 @@ export function parseFlags(argv: string[]): CliFlags {
   }
   if (expectingWatchInterval) {
     throw new Error("--watch-interval requires a value");
+  }
+  if (expectingIssue) {
+    throw new Error("--issue requires a value");
   }
   if (log !== undefined && !detach) {
     throw new Error("--log is only meaningful with --detach");
@@ -135,6 +179,7 @@ export function parseFlags(argv: string[]): CliFlags {
     reviewPanel,
     watch,
     watchIntervalSec,
+    issue,
     rest,
   };
 }
@@ -191,6 +236,7 @@ Flags:
   --review-panel      replace the single reviewer stage with correctness/security/tests lens reviewers + one synth commit (default: off)
   --watch             poll for labelled GitHub issues and run the loop whenever work is found (ghafk-only; default: off)
   --watch-interval <sec>  seconds between polls in watch mode (default: 300)
+  --issue <ref>       target a single GitHub issue (number, #N, owner/repo#N, or issue URL); loop exits when it is done (ghafk-only; default: off)
 
 Environment variables:
   RALPH_WORKSPACE   host dir Claude runs against (default: cwd)
@@ -220,6 +266,7 @@ export type PrintConfigOptions = {
   reviewLenses?: string[];
   watch?: boolean;
   watchIntervalSec?: number;
+  issue?: number;
 };
 
 export function printConfig(
@@ -240,6 +287,7 @@ export function printConfig(
     reviewLenses = [],
     watch = false,
     watchIntervalSec,
+    issue,
   } = opts;
   const core = readCoreVersion();
   const cli = cliVersion ?? "?";
@@ -273,6 +321,7 @@ export function printConfig(
   const watchStatus = watch
     ? `on (every ${watchIntervalSec ?? 300}s, label "${watchLabel}")`
     : "off";
+  const issueStatus = issue != null ? `#${issue}` : "off";
 
   process.stdout.write(`[${bin}] resolved config
   version               ${bin} ${cli} (core ${core})
@@ -289,5 +338,6 @@ export function printConfig(
   cooldown              ${cooldownStatus}
   review                ${reviewStatus}
   watch                 ${watchStatus}
+  issue                 ${issueStatus}
 `);
 }
