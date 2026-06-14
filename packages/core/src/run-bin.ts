@@ -31,7 +31,7 @@ export type RunBinConfig = {
 
 /**
  * Shared entry for the AFK bins: parse flags, handle --version/--help/--print-config,
- * resolve the workspace / docker-context / package dirs, validate the positional args,
+ * resolve the workspace / package dirs, validate the positional args,
  * optionally fork into the background (--detach), then drive runLoop.
  */
 export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {

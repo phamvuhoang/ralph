@@ -35,7 +35,7 @@ export type LoopOptions = {
   stages: [Stage, ...Stage[]];
   inputs: string;
   iterations: number;
-  /** Host repo bind-mounted into the sandbox at /home/agent/workspace. */
+  /** Host repo Claude runs against (cwd). */
   workspaceDir: string;
   /** Installed @daonhan/ralph-core dir; stage templates are read from <packageDir>/templates. */
   packageDir: string;
