@@ -210,11 +210,11 @@ Full per-OS notes (wake-lock mechanism, etc.) live in [`docs/keep-alive.md`](./d
 
 ### Cost control, pacing & review panel
 
-| Flag              | Default | What it does                                                                                                                    |
-| ----------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `--budget <usd>`  | off     | Stop the loop once cumulative Claude spend reaches this dollar amount (committed work is kept). Cost is printed per stage.      |
-| `--cooldown <ms>` | `0`     | Sleep between iterations; grows automatically (×2, capped) when the API signals throttling.                                     |
-| `--review-panel`  | off     | Replace the single reviewer with a paced panel — read-only `correctness`/`security`/`tests` lenses → one `fix(review):` commit. |
+| Flag              | Default | What it does                                                                                                                                                                                                                                                         |
+| ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--budget <usd>`  | off     | Stop the loop once cumulative Claude spend reaches this dollar amount (committed work is kept). Cost is printed per stage.                                                                                                                                           |
+| `--cooldown <ms>` | `0`     | Sleep between iterations; grows automatically (×2, capped) when the API signals throttling.                                                                                                                                                                          |
+| `--review-panel`  | off     | Replace the single reviewer with a paced panel — read-only `correctness`/`security`/`tests` lenses → an adversarial verify pass (a skeptic refutes the findings, defaulting to reject when uncertain) → one `fix(review):` commit that fixes only confirmed defects. |
 
 ```bash
 # cap spend, pace iterations, and use the reviewer panel

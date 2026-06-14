@@ -1,14 +1,19 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { executeStage } from "./stage-exec.js";
 import { sleep } from "./pacing.js";
 import type { StageResult } from "./runner.js";
-import { dim, red, SYM } from "./stream-render.js";
+import { bold, dim, green, red, SYM } from "./stream-render.js";
 
 const LENS_STAGE = {
   name: "review-lens",
   template: "review-lens.md",
+  permissionMode: "bypassPermissions",
+};
+const VERIFY_STAGE = {
+  name: "review-verify",
+  template: "review-verify.md",
   permissionMode: "bypassPermissions",
 };
 const SYNTH_STAGE = {
@@ -16,6 +21,43 @@ const SYNTH_STAGE = {
   template: "review-synth.md",
   permissionMode: "bypassPermissions",
 };
+
+/** Phase start line: `● review · <label>`. */
+function phaseLine(label: string): void {
+  process.stderr.write(
+    `${bold(SYM.bullet)} ${bold("review")} ${dim(`· ${label}`)}\n`
+  );
+}
+/** Phase outcome line: `  ⎿ ✓ <note>`. */
+function outcomeLine(note: string): void {
+  process.stderr.write(`${dim(SYM.cont)} ${green(SYM.check)} ${dim(note)}\n`);
+}
+
+/** Human count of a lens's findings from its free-form output ("skip" = no commit to review). */
+function findingsNote(result: string): string {
+  const t = result.trim();
+  if (/<lens>\s*SKIP\s*<\/lens>/i.test(t)) return "skipped (no commit)";
+  const n = t
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^[-*]\s+\S/.test(l)).length;
+  if (n === 0) return "no findings";
+  return `${n} finding${n === 1 ? "" : "s"}`;
+}
+
+/** CONFIRMED/REJECTED tallies from the verifier's verdicts.md (absent file = 0/0). */
+function verdictNote(panelHostDir: string): string {
+  let confirmed = 0;
+  let rejected = 0;
+  try {
+    const txt = readFileSync(join(panelHostDir, "verdicts.md"), "utf8");
+    confirmed = (txt.match(/^\s*CONFIRMED\b/gim) || []).length;
+    rejected = (txt.match(/^\s*REJECTED\b/gim) || []).length;
+  } catch {
+    // verifier wrote no file (e.g. nothing to verify) — report zero.
+  }
+  return `${confirmed} confirmed, ${rejected} rejected`;
+}
 
 /** Per-sub-agent control returned by the loop: budget-stop + adaptive cooldown. */
 export type PanelStageControl = { stop: boolean; cooldownFactor: number };
@@ -95,12 +137,28 @@ export async function runPanel(opts: RunPanelOptions): Promise<StageResult> {
     );
   }
 
+  const findingsDirRef = `./${posix.join(".ralph-tmp", panelRel)}/`;
+
+  // Restore HEAD if a contractually read-only sub-agent (lens or verifier)
+  // committed or edited tracked files despite the prompt. Only safe when the
+  // worktree started clean, so reset --hard can discard only the sub-agent's
+  // own changes — never pre-existing work. Returns true if it had to restore.
+  const restoreIfMutated = (who: string): boolean => {
+    if (enforceReadOnly && lensMutatedRepo(workspaceDir, baseHead)) {
+      process.stderr.write(
+        `${red(SYM.cross)} ${dim(`${who} mutated the repo (read-only violation) — restoring to ${baseHead!.slice(0, 8)}`)}\n`
+      );
+      git(["reset", "--hard", baseHead!], workspaceDir);
+      return true;
+    }
+    return false;
+  };
+
   try {
+    // 1. Lenses — each finds defects through one lens, read-only.
     for (let i = 0; i < lenses.length; i++) {
       const lens = lenses[i];
-      process.stderr.write(
-        `${dim(`panel lens: ${lens} (${i + 1}/${lenses.length})`)}\n`
-      );
+      phaseLine(`${lens} lens (${i + 1}/${lenses.length})`);
       const sr = await executeStage({
         stage: LENS_STAGE,
         vars: { LENS: lens },
@@ -111,33 +169,44 @@ export async function runPanel(opts: RunPanelOptions): Promise<StageResult> {
         signal,
         logLabel: `lens-${lens}`,
       });
-
-      // Enforce read-only: if the lens committed or edited tracked files, warn and
-      // restore HEAD so the next lens / synth see the implementer's commit cleanly.
-      // Only runs when the worktree started clean, so reset --hard can only ever
-      // discard the lens's own changes — never pre-existing work.
-      if (enforceReadOnly && lensMutatedRepo(workspaceDir, baseHead)) {
-        process.stderr.write(
-          `${red(SYM.cross)} ${dim(`lens ${lens} mutated the repo (read-only violation) — restoring to ${baseHead!.slice(0, 8)}`)}\n`
-        );
-        git(["reset", "--hard", baseHead!], workspaceDir);
-      }
-
+      restoreIfMutated(`lens ${lens}`);
       writeFileSync(
         join(panelHostDir, `findings-${lens}.md`),
         sr.result,
         "utf8"
       );
+      outcomeLine(findingsNote(sr.result));
 
       const ctrl = onStage?.(sr) ?? { stop: false, cooldownFactor: 1 };
-      if (ctrl.stop) return sr; // budget exhausted — skip remaining lenses + synth
+      if (ctrl.stop) return sr; // budget exhausted — skip remaining lenses + verify + synth
       if (cooldownMs > 0) await sleep(cooldownMs * ctrl.cooldownFactor, signal);
     }
 
-    process.stderr.write(`${dim("panel synth")}\n`);
+    // 2. Adversarial verify — a skeptic refutes the lens findings, writing
+    //    verdicts.md (CONFIRMED/REJECTED) so synth only fixes survivors.
+    phaseLine("adversarial verify");
+    const verify = await executeStage({
+      stage: VERIFY_STAGE,
+      vars: { FINDINGS_DIR: findingsDirRef },
+      workspaceDir,
+      packageDir,
+      iteration,
+      maxRetries,
+      signal,
+      logLabel: "verify",
+    });
+    restoreIfMutated("verify");
+    outcomeLine(verdictNote(panelHostDir));
+
+    const vctrl = onStage?.(verify) ?? { stop: false, cooldownFactor: 1 };
+    if (vctrl.stop) return verify; // budget exhausted — skip synth
+    if (cooldownMs > 0) await sleep(cooldownMs * vctrl.cooldownFactor, signal);
+
+    // 3. Synth — fix only CONFIRMED findings in one fix(review:) commit.
+    phaseLine("synthesize & fix");
     const synth = await executeStage({
       stage: SYNTH_STAGE,
-      vars: { FINDINGS_DIR: `./${posix.join(".ralph-tmp", panelRel)}/` },
+      vars: { FINDINGS_DIR: findingsDirRef },
       workspaceDir,
       packageDir,
       iteration,
@@ -145,6 +214,13 @@ export async function runPanel(opts: RunPanelOptions): Promise<StageResult> {
       signal,
       logLabel: "synth",
     });
+    const after = git(["rev-parse", "HEAD"], workspaceDir);
+    const committed = baseHead != null && after != null && after !== baseHead;
+    outcomeLine(
+      committed
+        ? `committed: ${git(["log", "-1", "--pretty=%s"], workspaceDir) ?? "fix(review)"}`
+        : "clean — no fix needed"
+    );
     onStage?.(synth);
     return synth;
   } finally {
