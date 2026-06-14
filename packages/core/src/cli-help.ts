@@ -13,6 +13,8 @@ export type CliFlags = {
   detach: boolean;
   log?: string;
   notify: boolean;
+  budget?: number;
+  cooldownMs?: number;
   rest: string[];
 };
 
@@ -27,6 +29,10 @@ export function parseFlags(argv: string[]): CliFlags {
   let log: string | undefined;
   let expectingLog = false;
   let notify = false;
+  let budget: number | undefined;
+  let expectingBudget = false;
+  let cooldownMs: number | undefined;
+  let expectingCooldown = false;
   const rest: string[] = [];
   for (const a of argv) {
     if (expectingMaxRetries) {
@@ -44,6 +50,27 @@ export function parseFlags(argv: string[]): CliFlags {
       expectingLog = false;
       continue;
     }
+    if (expectingBudget) {
+      const n = Number(a);
+      if (!Number.isFinite(n) || n <= 0) {
+        throw new Error(
+          `--budget must be a positive number, got: ${JSON.stringify(a)}`
+        );
+      }
+      budget = n;
+      expectingBudget = false;
+      continue;
+    }
+    if (expectingCooldown) {
+      if (!/^\d+$/.test(a)) {
+        throw new Error(
+          `--cooldown must be a non-negative integer (ms), got: ${JSON.stringify(a)}`
+        );
+      }
+      cooldownMs = Number.parseInt(a, 10);
+      expectingCooldown = false;
+      continue;
+    }
     if (a === "-h" || a === "--help") help = true;
     else if (a === "-V" || a === "--version") version = true;
     else if (a === "--print-config") printConfig = true;
@@ -52,6 +79,8 @@ export function parseFlags(argv: string[]): CliFlags {
     else if (a === "--detach") detach = true;
     else if (a === "--log") expectingLog = true;
     else if (a === "--notify") notify = true;
+    else if (a === "--budget") expectingBudget = true;
+    else if (a === "--cooldown") expectingCooldown = true;
     else rest.push(a);
   }
   if (expectingMaxRetries) {
@@ -59,6 +88,12 @@ export function parseFlags(argv: string[]): CliFlags {
   }
   if (expectingLog) {
     throw new Error("--log requires a value");
+  }
+  if (expectingBudget) {
+    throw new Error("--budget requires a value");
+  }
+  if (expectingCooldown) {
+    throw new Error("--cooldown requires a value");
   }
   if (log !== undefined && !detach) {
     throw new Error("--log is only meaningful with --detach");
@@ -72,6 +107,8 @@ export function parseFlags(argv: string[]): CliFlags {
     detach,
     log,
     notify,
+    budget,
+    cooldownMs,
     rest,
   };
 }
@@ -123,6 +160,8 @@ Flags:
   --detach            fork the loop into a background process, print pid + log path, and exit (parent returns 0)
   --log <path>        override the detached log path (default: <workspace>/.ralph-tmp/logs/detached-<parent-pid>.log; requires --detach)
   --notify            emit OS notification + terminal bell on loop completion or unrecoverable failure (default: off)
+  --budget <usd>      stop the loop when cumulative stage cost reaches this USD ceiling (default: off)
+  --cooldown <ms>     wait this many milliseconds between iterations; adaptive backoff doubles on throttle (default: 0)
 
 Environment variables:
   RALPH_WORKSPACE   host dir Claude runs against (default: cwd)
@@ -144,6 +183,8 @@ export type PrintConfigOptions = {
   detach?: boolean;
   detachLogPath?: string;
   notify?: boolean;
+  budget?: number;
+  cooldownMs?: number;
 };
 
 export function printConfig(
@@ -159,6 +200,8 @@ export function printConfig(
     detach = false,
     detachLogPath,
     notify = false,
+    budget,
+    cooldownMs,
   } = opts;
   const core = readCoreVersion();
   const cli = cliVersion ?? "?";
@@ -183,6 +226,9 @@ export function printConfig(
       ? `${rawModel.trim()} (RALPH_MODEL)`
       : "claude CLI default (RALPH_MODEL unset)";
 
+  const budgetStatus = budget != null ? `$${budget.toFixed(2)}` : "off";
+  const cooldownStatus = cooldownMs ? `${cooldownMs}ms` : "off";
+
   process.stdout.write(`[${bin}] resolved config
   version               ${bin} ${cli} (core ${core})
   RALPH_WORKSPACE       ${workspaceDir}${process.env.RALPH_WORKSPACE ? "" : "  (default: cwd)"}
@@ -194,5 +240,7 @@ export function printConfig(
   max-retries           ${maxRetries}
   detach                ${detachStatus}
   notify                ${notifyStatus}
+  budget                ${budgetStatus}
+  cooldown              ${cooldownStatus}
 `);
 }

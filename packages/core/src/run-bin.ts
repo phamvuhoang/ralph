@@ -65,6 +65,8 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
       detach: flags.detach,
       detachLogPath,
       notify: flags.notify,
+      budget: flags.budget,
+      cooldownMs: flags.cooldownMs,
     });
     return;
   }
@@ -101,5 +103,7 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     notify: flags.notify,
     bin: cfg.bin,
     cliVersion: cfg.cliVersion,
+    budgetUsd: flags.budget,
+    cooldownMs: flags.cooldownMs,
   });
 }
