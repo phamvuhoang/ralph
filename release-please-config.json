@@ -26,8 +26,7 @@
     },
     "apps/cli": {
       "component": "ralph",
-      "exclude-paths": ["apps/cli/CHANGELOG.md"],
-      "release-as": "0.6.5"
+      "exclude-paths": ["apps/cli/CHANGELOG.md"]
     }
   }
 }
