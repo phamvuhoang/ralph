@@ -29,6 +29,8 @@ export type RunBinConfig = {
   cliVersion?: string;
   /** Whether this bin supports --watch. Only ralph-ghafk sets this. */
   supportsWatch?: boolean;
+  /** Alternate gate stage used when --issue is set. Only ralph-ghafk sets this. */
+  issueStage?: Stage;
 };
 
 /**
@@ -84,11 +86,17 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
       reviewLenses: reviewLenses ?? [],
       watch: flags.watch,
       watchIntervalSec: flags.watchIntervalSec,
+      issue: flags.issue,
     });
     return;
   }
 
-  const inputs = cfg.takesInputArg ? flags.rest[0] : "";
+  const inputs =
+    flags.issue != null
+      ? String(flags.issue)
+      : cfg.takesInputArg
+        ? flags.rest[0]
+        : "";
   const iterationsArg = cfg.takesInputArg ? flags.rest[1] : flags.rest[0];
   if ((cfg.takesInputArg && !inputs) || !iterationsArg) {
     console.error(`Usage: ${cfg.bin} ${cfg.usage}`);
@@ -100,6 +108,25 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     console.error(`Invalid iterations: ${iterationsArg}`);
     process.exit(1);
   }
+
+  if (flags.issue != null) {
+    if (!cfg.issueStage) {
+      console.error("--issue is only supported by ralph-ghafk");
+      process.exit(1);
+    }
+    if (flags.watch) {
+      console.error("--issue cannot be combined with --watch");
+      process.exit(1);
+    }
+    // Validated positive integer (parseIssueRef) — safe for the static
+    // `gh issue view "$RALPH_ISSUE"` command in ghafk-issue.md. See render.ts.
+    process.env.RALPH_ISSUE = String(flags.issue);
+  }
+
+  const stages =
+    flags.issue != null && cfg.issueStage
+      ? ([cfg.issueStage, ...cfg.stages.slice(1)] as [Stage, ...Stage[]])
+      : cfg.stages;
 
   if (flags.detach && detachLogPath) {
     detachAndExit({
@@ -116,7 +143,7 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     }
     const { runWatch } = await import("./watch.js");
     await runWatch({
-      stages: cfg.stages,
+      stages,
       iterations,
       workspaceDir,
       packageDir,
@@ -134,7 +161,7 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
   }
 
   await runLoop({
-    stages: cfg.stages,
+    stages,
     inputs: inputs ?? "",
     iterations,
     workspaceDir,
