@@ -20,6 +20,11 @@ export const STAGES = {
     template: "ghafk.md",
     permissionMode: "bypassPermissions",
   } satisfies Stage,
+  ghafkIssueImplementer: {
+    name: "ghafk-issue-implementer",
+    template: "ghafk-issue.md",
+    permissionMode: "bypassPermissions",
+  } satisfies Stage,
   reviewer: {
     name: "reviewer",
     template: "review.md",
