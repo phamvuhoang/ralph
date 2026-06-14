@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.8.0...ralph-core-v0.8.1) (2026-06-14)
+
+
+### Miscellaneous Chores
+
+* merge main, resolve release-please manifest after ralph-core 0.8.0 ([a7b58a6](https://github.com/phamvuhoang/ralph/commit/a7b58a6ed9ee9528ec4e6164b9d4cd1778845f41))
+
 ## [0.8.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.7.0...ralph-core-v0.8.0) (2026-06-14)
 
 
