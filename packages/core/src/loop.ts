@@ -125,6 +125,29 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
   let sentinelHit = false;
   let runCostUsd = 0;
   let cooldownFactor = 1;
+
+  // Single source of truth for per-stage accounting: tally cost, report it,
+  // advance the adaptive cooldown factor on throttle, and report whether the
+  // budget is now exhausted. Used once per non-panel stage AND once per panel
+  // sub-agent (passed to runPanel as onStage), so budget + adaptive pacing
+  // apply uniformly to lenses, synth, and ordinary stages alike.
+  const accountStage = (
+    sr: StageResult
+  ): { stop: boolean; cooldownFactor: number } => {
+    runCostUsd += sr.costUsd;
+    process.stderr.write(
+      `${dim(`· $${sr.costUsd.toFixed(2)} (run $${runCostUsd.toFixed(2)})`)}\n`
+    );
+    cooldownFactor = nextCooldownFactor(
+      cooldownFactor,
+      isThrottle(sr.apiErrorStatus)
+    );
+    return {
+      stop: budgetUsd != null && runCostUsd >= budgetUsd,
+      cooldownFactor,
+    };
+  };
+
   try {
     for (let i = 1; i <= iterations; i++) {
       for (let s = 0; s < stages.length; s++) {
@@ -159,9 +182,7 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
               maxRetries,
               cooldownMs,
               signal: activeSignal,
-              onCost: (c: number) => {
-                runCostUsd += c;
-              },
+              onStage: accountStage,
             });
           } else {
             sr = await executeStage({
@@ -173,6 +194,7 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
               maxRetries,
               signal: activeSignal,
             });
+            accountStage(sr);
           }
         } catch (err) {
           if (activeSignal.aborted) {
@@ -191,16 +213,8 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
           break;
         }
 
-        // Accumulate cost and report.
-        // Panel branch: cost was already accumulated via onCost; avoid double-counting.
-        runCostUsd += usePanel ? 0 : sr.costUsd;
-        process.stderr.write(
-          `${dim(`· $${sr.costUsd.toFixed(2)} (run $${runCostUsd.toFixed(2)})`)}\n`
-        );
-        cooldownFactor = nextCooldownFactor(
-          cooldownFactor,
-          isThrottle(sr.apiErrorStatus)
-        );
+        // Cost/pacing accounting is handled by accountStage — called once per
+        // non-panel stage above, and once per sub-agent inside runPanel.
 
         if (s === 0) {
           if (sr.result.includes(SENTINEL)) {
