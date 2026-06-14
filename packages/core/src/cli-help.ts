@@ -238,6 +238,7 @@ Flags:
   --review-panel      replace the single reviewer stage with correctness/security/tests lens reviewers + one synth commit (default: off)
   --watch             poll for labelled GitHub issues and run the loop whenever work is found (ghafk-only; default: off)
   --watch-interval <sec>  seconds between polls in watch mode (default: 300)
+  --issue <ref>       target a single GitHub issue (number, #N, owner/repo#N, or issue URL); loop exits when it is done (ghafk-only; default: off)
 
 Environment variables:
   RALPH_WORKSPACE   host dir Claude runs against (default: cwd)
@@ -267,6 +268,7 @@ export type PrintConfigOptions = {
   reviewLenses?: string[];
   watch?: boolean;
   watchIntervalSec?: number;
+  issue?: number;
 };
 
 export function printConfig(
@@ -287,6 +289,7 @@ export function printConfig(
     reviewLenses = [],
     watch = false,
     watchIntervalSec,
+    issue,
   } = opts;
   const core = readCoreVersion();
   const cli = cliVersion ?? "?";
@@ -320,6 +323,7 @@ export function printConfig(
   const watchStatus = watch
     ? `on (every ${watchIntervalSec ?? 300}s, label "${watchLabel}")`
     : "off";
+  const issueStatus = issue != null ? `#${issue}` : "off";
 
   process.stdout.write(`[${bin}] resolved config
   version               ${bin} ${cli} (core ${core})
@@ -336,5 +340,6 @@ export function printConfig(
   cooldown              ${cooldownStatus}
   review                ${reviewStatus}
   watch                 ${watchStatus}
+  issue                 ${issueStatus}
 `);
 }
