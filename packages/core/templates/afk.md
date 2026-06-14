@@ -4,6 +4,12 @@
 
 </commits>
 
+<learnings>
+
+!?`cat ./.ralph/LEARNINGS.md|||_No learnings recorded yet._`
+
+</learnings>
+
 <inputs>
 
 {{ INPUTS }}

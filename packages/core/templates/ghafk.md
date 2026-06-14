@@ -4,6 +4,12 @@
 
 </commits>
 
+<learnings>
+
+!?`cat ./.ralph/LEARNINGS.md|||_No learnings recorded yet._`
+
+</learnings>
+
 <issues-summary>
 
 `gh issue list --state open --limit 50 --json number,title,labels`

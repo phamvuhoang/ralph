@@ -4,6 +4,12 @@
 
 </head>
 
+<learnings>
+
+!?`cat ./.ralph/LEARNINGS.md|||_No learnings recorded yet._`
+
+</learnings>
+
 # REVIEW SYNTHESIS
 
 Three review lenses (correctness / security / tests) each examined HEAD. Their findings are in `{{ FINDINGS_DIR }}` — `Read` every `findings-*.md` file there.

@@ -4,6 +4,12 @@
 
 </head>
 
+<learnings>
+
+!?`cat ./.ralph/LEARNINGS.md|||_No learnings recorded yet._`
+
+</learnings>
+
 <latest-diff>
 
 !?`git show --stat HEAD|||No diff`

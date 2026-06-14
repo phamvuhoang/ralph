@@ -40,7 +40,7 @@ The exact read-back line, added once per template (note the `|||` separator is I
 - Create: `packages/core/src/__tests__/learnings.test.ts`
 - Modify: `packages/core/templates/afk.md`, `ghafk.md`, `review.md`, `review-lens.md`, `review-synth.md`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `packages/core/src/__tests__/learnings.test.ts` with exactly this content. It renders the **real** shipped templates (`afk.md` = implementer, `review-synth.md` = reviewer; both are free of `@spill`, so no spill opts are needed):
 
@@ -116,12 +116,12 @@ describe("learnings read-back block", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm --filter @daonhan/ralph-core test -- learnings`
 Expected: FAIL — the "injects" assertions fail (`expected '...' to contain '- pnpm not npm'`) and the fallback assertion fails because no `<learnings>` block exists in the templates yet.
 
-- [ ] **Step 3: Add the read-back block to `afk.md`**
+- [x] **Step 3: Add the read-back block to `afk.md`**
 
 In `packages/core/templates/afk.md`, insert a `<learnings>` block between the `</commits>` and `<inputs>` blocks. Replace:
 
@@ -145,7 +145,7 @@ with:
 <inputs>
 ```
 
-- [ ] **Step 4: Add the read-back block to `ghafk.md`**
+- [x] **Step 4: Add the read-back block to `ghafk.md`**
 
 In `packages/core/templates/ghafk.md`, insert the same block between `</commits>` and `<issues-summary>`. Replace:
 
@@ -169,7 +169,7 @@ with:
 <issues-summary>
 ```
 
-- [ ] **Step 5: Add the read-back block to `review.md`**
+- [x] **Step 5: Add the read-back block to `review.md`**
 
 In `packages/core/templates/review.md`, insert the block between `</recent-commits>` and `<latest-diff>`. Replace:
 
@@ -193,7 +193,7 @@ with:
 <latest-diff>
 ```
 
-- [ ] **Step 6: Add the read-back block to `review-lens.md`**
+- [x] **Step 6: Add the read-back block to `review-lens.md`**
 
 In `packages/core/templates/review-lens.md`, insert the block between `</head>` and `<latest-diff>`. Replace:
 
@@ -217,7 +217,7 @@ with:
 <latest-diff>
 ```
 
-- [ ] **Step 7: Add the read-back block to `review-synth.md`**
+- [x] **Step 7: Add the read-back block to `review-synth.md`**
 
 In `packages/core/templates/review-synth.md`, insert the block between `</head>` and `# REVIEW SYNTHESIS`. Replace:
 
@@ -241,12 +241,12 @@ with:
 # REVIEW SYNTHESIS
 ```
 
-- [ ] **Step 8: Run the test to verify it passes**
+- [x] **Step 8: Run the test to verify it passes**
 
 Run: `pnpm --filter @daonhan/ralph-core test -- learnings`
 Expected: PASS (3 tests).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add packages/core/templates/afk.md packages/core/templates/ghafk.md packages/core/templates/review.md packages/core/templates/review-lens.md packages/core/templates/review-synth.md packages/core/src/__tests__/learnings.test.ts
