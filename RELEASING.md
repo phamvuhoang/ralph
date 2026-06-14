@@ -30,7 +30,7 @@ Release PR appears.
 <!-- status-table:start -->
 | Component | Artifact | Version | Released | Tag |
 | --- | --- | --- | --- | --- |
-| `ralph-core` | npm `@phamvuhoang/ralph-core` | `0.8.0` | 2026-06-14 | [`ralph-core-v0.8.0`](https://github.com/phamvuhoang/ralph/releases/tag/ralph-core-v0.8.0) |
+| `ralph-core` | npm `@phamvuhoang/ralph-core` | `0.8.1` | — | — |
 | `ralph` | npm `@phamvuhoang/ralph` | `0.6.6` | — | — |
 <!-- status-table:end -->
 
