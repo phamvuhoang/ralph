@@ -49,14 +49,22 @@ Release PR appears.
 
 1. Land your work on `main` with Conventional Commits (see §3). No version bump by
    hand — release-please computes it.
-2. release-please opens (or updates) **one Release PR per component** that has
-   unreleased commits. The PR bumps the version and amends `CHANGELOG.md`. (The
-   RELEASING.md status table is refreshed on `main` after the release — never on the
-   Release PR branch, which release-please must own exclusively.)
-3. Review the PR: confirm the proposed version and the CHANGELOG diff read the way
+2. release-please opens (or updates) **a single combined Release PR** covering every
+   component that has unreleased commits. The PR bumps each component's version and
+   amends its `CHANGELOG.md`. (The RELEASING.md status table is refreshed on `main`
+   after the release — never on the Release PR branch, which release-please must own
+   exclusively.)
+
+   > **Why one combined PR, not one per component.** `separate-pull-requests` is
+   > `false` deliberately. Separate per-component PRs both edit
+   > `.release-please-manifest.json`; because its two version lines are adjacent, git
+   > cannot 3-way-merge them, so whenever a `packages/core` change cascaded a `ralph`
+   > dependency bump (via the `node-workspace` plugin) the second PR conflicted on the
+   > manifest every time. One combined PR removes the sibling that caused the conflict.
+3. Review the PR: confirm the proposed versions and the CHANGELOG diffs read the way
    you want users to see them.
-4. **Merge the Release PR.** That single action creates the component tag
-   (`<component>-vX.Y.Z`) and the GitHub Release.
+4. **Merge the Release PR.** That single action creates each released component's tag
+   (`<component>-vX.Y.Z`) and GitHub Release.
 5. The tag triggers the matching publish workflow:
    - `ralph-core-v*` / `ralph-v*` → `publish-npm.yml` → publishes to npm, then
      attaches the `.tgz`, SBOM, and cosign attestation to the Release.
@@ -98,8 +106,11 @@ Which component a commit belongs to is decided by the path it touches:
 
 ## 4. Version policy
 
-- **Independent versions per component.** The three components are never released in
-  lockstep; a change to one does not force a bump of the others.
+- **Independent versions per component.** Each component keeps its own version number
+  and tag — they do not share a version. They are proposed together in one combined
+  Release PR (see §2), but a commit only bumps the component whose path it touches.
+  The one cascade: because `apps/cli` depends on `packages/core`, the `node-workspace`
+  plugin gives `ralph` a dependency-driven patch bump when `ralph-core` releases.
 - **0.x is treated as a stable contract.** Stricter than the SemVer spec's "0.x means
   anything goes": while on 0.x, a backward-compatible feature is a **minor** bump, a
   bug fix is a **patch** bump, and any **breaking change forces `1.0.0`**. Downstream
