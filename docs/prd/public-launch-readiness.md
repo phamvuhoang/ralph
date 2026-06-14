@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Ralph is a working, npm-published project (`@daonhan/ralph` / `@daonhan/ralph-core` are public on npm), but the **GitHub repository is still private**. The maintainer wants to flip the repository public — likely tied to an article-serial launch — and needs confidence that doing so is safe, that the release pipeline actually works, and that the first impression is clean.
+Ralph is a working, npm-published project (`@phamvuhoang/ralph` / `@phamvuhoang/ralph-core` are public on npm), but the **GitHub repository is still private**. The maintainer wants to flip the repository public — likely tied to an article-serial launch — and needs confidence that doing so is safe, that the release pipeline actually works, and that the first impression is clean.
 
 A pre-launch review surfaced one systemic defect and several smaller hygiene issues:
 
@@ -21,7 +21,7 @@ Treat the launch as a short, ordered, **de-risked runbook** rather than a code c
 The runbook, in dependency order:
 
 1. **Fix the root cause** — add a repo-scoped Personal Access Token as the `RELEASE_PLEASE_TOKEN` secret so release-please-created tags trigger the publish workflows on every future release.
-2. **Roll the 0.6.3 release forward** — manually dispatch the existing publish workflows (which already expose `workflow_dispatch` with a `tag` input) to publish `@daonhan/ralph-core@0.6.3`, `@daonhan/ralph@0.6.3`, and the `ralph-sandbox:0.2.3` image, enriching the existing GitHub Releases with their `.tgz` / SBOM / cosign artifacts.
+2. **Roll the 0.6.3 release forward** — manually dispatch the existing publish workflows (which already expose `workflow_dispatch` with a `tag` input) to publish `@phamvuhoang/ralph-core@0.6.3`, `@phamvuhoang/ralph@0.6.3`, and the `ralph-sandbox:0.2.3` image, enriching the existing GitHub Releases with their `.tgz` / SBOM / cosign artifacts.
 3. **Modernize CI actions** — bump the Node-20 actions to current majors ahead of the June 16 deadline, as a separate change so an action-version surprise cannot break the launch publish.
 4. **Clean the repo surface** — delete merged and stale branches, close the red dependabot PR.
 5. **Flip the repository public.**
@@ -32,8 +32,8 @@ The `RELEASE_PLEASE_TOKEN` fix plus a documented "never hand-edit release-please
 
 1. As the maintainer, I want the GitHub repository made public, so that I can link it from the article serial and accept external contributions.
 2. As the maintainer, I want assurance that no secret was ever committed before flipping public, so that making the full git history world-readable is safe.
-3. As an npm user, I want `@daonhan/ralph@latest` to install 0.6.3, so that I receive the ghafk silent-failure fix and other 0.6.3 changes.
-4. As an operator, I want `docker.io/daonhan/ralph-sandbox:latest` to serve the 0.2.3 image, so that my loop runs the current playbooks.
+3. As an npm user, I want `@phamvuhoang/ralph@latest` to install 0.6.3, so that I receive the ghafk silent-failure fix and other 0.6.3 changes.
+4. As an operator, I want `docker.io/phamvuhoang/ralph-sandbox:latest` to serve the 0.2.3 image, so that my loop runs the current playbooks.
 5. As a security-conscious user, I want the existing 0.6.3 GitHub Releases enriched with their `.tgz`, SBOM, and cosign attestation, so that the supply-chain artifacts match the published versions.
 6. As the maintainer, I want a `RELEASE_PLEASE_TOKEN` PAT configured, so that release-please-created tags trigger the npm and image publish workflows automatically.
 7. As the maintainer, I want every future release to publish all three artifacts without a manual dispatch, so that releases stop half-completing.
@@ -50,7 +50,7 @@ The `RELEASE_PLEASE_TOKEN` fix plus a documented "never hand-edit release-please
 18. As a new visitor, I want the README to lead with the `bypassPermissions` + Docker-socket security warning, so that I understand the blast radius before running an AFK loop. (Already satisfied; verified in scope.)
 19. As a new user, I want install commands that resolve to the current published version without me editing a pin, so that copy-paste works after the publish. (Already satisfied; unpinned commands.)
 20. As an interested reader, I want the internal `docs/plans` and `docs/prd` design docs to remain in the public repo, so that I can see the engineering rationale.
-21. As the maintainer, I want a documented verification step after the roll-forward (`npm view @daonhan/ralph version` returns 0.6.3, image digest present on the release), so that I can confirm the registries are consistent before flipping public.
+21. As the maintainer, I want a documented verification step after the roll-forward (`npm view @phamvuhoang/ralph version` returns 0.6.3, image digest present on the release), so that I can confirm the registries are consistent before flipping public.
 22. As a future maintainer, I want this whole episode captured as a PRD, so that the next person understands why 0.6.3 was rolled forward and why the PAT matters.
 
 ## Implementation Decisions
@@ -94,7 +94,7 @@ A good test here verifies **external, observable outcomes** — which version ea
 
 Verification steps (manual, post-action):
 
-- After roll-forward: `npm view @daonhan/ralph version` and `npm view @daonhan/ralph-core version` both return `0.6.3`; the `ralph-sandbox:0.2.3` image exists and `:latest` points at it; the three 0.6.3/0.2.3 GitHub Releases carry their `.tgz` / SBOM / cosign artifacts.
+- After roll-forward: `npm view @phamvuhoang/ralph version` and `npm view @phamvuhoang/ralph-core version` both return `0.6.3`; the `ralph-sandbox:0.2.3` image exists and `:latest` points at it; the three 0.6.3/0.2.3 GitHub Releases carry their `.tgz` / SBOM / cosign artifacts.
 - After the action bump: the CI workflow run on the bump PR is green before merge.
 - After hygiene: the public branch list shows only `main` plus any genuinely live branch; PR #66 is closed.
 - After the PAT is added: the next routine release (the first `feat:`/`fix:` after 0.6.3) publishes npm + image automatically with no manual dispatch — the real regression test for the root-cause fix.

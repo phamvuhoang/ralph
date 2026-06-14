@@ -223,7 +223,7 @@ None in this repo (no test suite exists today). The multi-version-runtime-suppor
 End-to-end smoke after merge, in order:
 
 1. `pnpm install && pnpm -r build && pnpm -r typecheck` — clean.
-2. `pnpm --filter @daonhan/ralph-core test` — `keepalive.test.ts` + `retry.test.ts` green.
+2. `pnpm --filter @phamvuhoang/ralph-core test` — `keepalive.test.ts` + `retry.test.ts` green.
 3. Windows 11: `ralph-afk "<short plan>" 3` — confirm via `powercfg /requests` that a `SYSTEM` request is held during the run, released after exit.
 4. macOS: `ralph-afk "<short plan>" 3` — confirm via `pmset -g assertions` that `PreventUserIdleSystemSleep` is held during the run.
 5. Linux: `ralph-afk "<short plan>" 3` — confirm via `systemd-inhibit --list` that the inhibitor is present during the run.

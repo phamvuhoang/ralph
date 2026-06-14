@@ -1,6 +1,6 @@
 # PRD: Post-result grace timer in `streamDocker`
 
-> Tracking: [daonhan/ralph#29](https://github.com/daonhan/ralph/issues/29) (PRD) / [daonhan/ralph#30](https://github.com/daonhan/ralph/issues/30) (implementation). Target release: `@daonhan/ralph-core` 0.6.1.
+> Tracking: [phamvuhoang/ralph#29](https://github.com/phamvuhoang/ralph/issues/29) (PRD) / [phamvuhoang/ralph#30](https://github.com/phamvuhoang/ralph/issues/30) (implementation). Target release: `@phamvuhoang/ralph-core` 0.6.1.
 
 ## Problem Statement
 
@@ -21,7 +21,7 @@ From the user's perspective: ralph appears frozen for a long time after a succes
 Until the grace timer ships, the only recovery is manual:
 
 ```bash
-docker ps --filter ancestor=docker.io/daonhan/ralph-sandbox:latest
+docker ps --filter ancestor=docker.io/phamvuhoang/ralph-sandbox:latest
 docker kill <container-id>
 ```
 
@@ -59,7 +59,7 @@ From the user's perspective: ralph self-recovers from this class of hang without
 18. As a ralph maintainer, I want the README updated to document `RALPH_RESULT_GRACE_MS` alongside the other `RALPH_*` env vars, so that the knob is discoverable.
 19. As a ralph maintainer, I want the change verified by `pnpm -r typecheck` and a manual smoke run, so that verification matches the repo's existing standard (no test suite exists today).
 20. As a ralph maintainer, I want the fix to be safe in the worst case (kill SIGTERM fails, child still alive) — at minimum the timer should not double-fire and the promise should not double-settle.
-21. As a ralph user, I want the post-fix release notes to document the pre-fix manual recovery procedure (`docker ps --filter ancestor=…` + `docker kill <id>`), so that operators on an older `@daonhan/ralph-core` version still have a runbook for the same hang.
+21. As a ralph user, I want the post-fix release notes to document the pre-fix manual recovery procedure (`docker ps --filter ancestor=…` + `docker kill <id>`), so that operators on an older `@phamvuhoang/ralph-core` version still have a runbook for the same hang.
 22. As a ralph user, I want the fix to make the manual `docker kill` workaround unnecessary going forward, so that overnight runs do not require human intervention to recover from this class of hang.
 
 ## Implementation Decisions
@@ -102,7 +102,7 @@ From the user's perspective: ralph self-recovers from this class of hang without
 
 ## Release
 
-- Target version: **`@daonhan/ralph-core` 0.6.1** (patch bump from 0.6.0).
+- Target version: **`@phamvuhoang/ralph-core` 0.6.1** (patch bump from 0.6.0).
 - Mechanism: lands as a `fix(core): …` conventional commit; release-please picks it up and opens the release PR automatically (no manual `package.json` / `.release-please-manifest.json` edits required).
-- `@daonhan/ralph` (CLI) is **not** bumped by this change — the CLI only re-exports `runAfk` from core, so a core patch is enough. If a future commit in the same release cycle touches the CLI bins, release-please will bump the CLI separately.
+- `@phamvuhoang/ralph` (CLI) is **not** bumped by this change — the CLI only re-exports `runAfk` from core, so a core patch is enough. If a future commit in the same release cycle touches the CLI bins, release-please will bump the CLI separately.
 - Sandbox image (`packages/core/templates`) is unaffected; no `image-v*` tag.

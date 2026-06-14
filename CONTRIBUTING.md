@@ -205,8 +205,8 @@ manifest), so don't use it. The `*.tgz` globs below are version-agnostic.
 pnpm -r build
 (cd packages/core && pnpm pack --pack-destination /tmp/ralph-packs)
 (cd apps/cli      && pnpm pack --pack-destination /tmp/ralph-packs)
-npm i -g /tmp/ralph-packs/daonhan-ralph-core-*.tgz \
-         /tmp/ralph-packs/daonhan-ralph-*.tgz
+npm i -g /tmp/ralph-packs/phamvuhoang-ralph-core-*.tgz \
+         /tmp/ralph-packs/phamvuhoang-ralph-*.tgz
 ralph-afk          # → prints usage
 ```
 
@@ -214,8 +214,8 @@ ralph-afk          # → prints usage
 pnpm -r build
 pnpm --filter @phamvuhoang/ralph-core pack --pack-destination $env:TEMP\ralph-packs
 pnpm --filter @phamvuhoang/ralph      pack --pack-destination $env:TEMP\ralph-packs
-npm i -g (Get-ChildItem $env:TEMP\ralph-packs\daonhan-ralph-core-*.tgz).FullName `
-         (Get-ChildItem $env:TEMP\ralph-packs\daonhan-ralph-*.tgz).FullName
+npm i -g (Get-ChildItem $env:TEMP\ralph-packs\phamvuhoang-ralph-core-*.tgz).FullName `
+         (Get-ChildItem $env:TEMP\ralph-packs\phamvuhoang-ralph-*.tgz).FullName
 ralph-afk          # -> prints usage
 ```
 

@@ -7,7 +7,7 @@
 Durable decisions that apply across all phases:
 
 - **Reconciliation strategy**: roll the half-completed 0.6.3 release **forward** (publish the lagging registries to match git/GitHub), never roll back. GitHub already holds the 0.6.3/0.2.3 tags and Releases.
-- **Tag schema** (unchanged, source of truth for what to publish): `ralph-core-vX.Y.Z` → `@daonhan/ralph-core`, `ralph-vX.Y.Z` → `@daonhan/ralph`, `ralph-sandbox-vX.Y.Z` → the sandbox image (`tag=vX.Y.Z`).
+- **Tag schema** (unchanged, source of truth for what to publish): `ralph-core-vX.Y.Z` → `@phamvuhoang/ralph-core`, `ralph-vX.Y.Z` → `@phamvuhoang/ralph`, `ralph-sandbox-vX.Y.Z` → the sandbox image (`tag=vX.Y.Z`).
 - **Publish mechanism**: use the **existing `workflow_dispatch` escape hatches** on `publish-npm.yml` (`tag` input) and `publish-image.yml` (`tag` / `also_latest` / `release_tag` inputs). No workflow logic is rewritten in this plan; only action `uses:` versions change, and only in Phase 4.
 - **release-please ownership**: `.release-please-manifest.json` and the per-package `version` fields are owned by release-please and are **never hand-edited**. (The phantom-version churn traces to a manual bump.)
 - **Ownership split**: two actions require the maintainer and cannot be done by the agent — creating the `RELEASE_PLEASE_TOKEN` PAT (Phase 1) and flipping repository visibility (Phase 6). All other phases are agent-executable with a go-ahead.
@@ -45,8 +45,8 @@ Make the registries match what git/GitHub already assert. Dispatch the existing 
 
 - [ ] `publish-npm.yml` dispatched for `ralph-core-v0.6.3` and for `ralph-v0.6.3`; both runs succeed.
 - [ ] `publish-image.yml` dispatched with `tag=v0.2.3`, `also_latest=true`, `release_tag=ralph-sandbox-v0.2.3`; run succeeds.
-- [ ] `npm view @daonhan/ralph version` and `npm view @daonhan/ralph-core version` both return `0.6.3`.
-- [ ] `docker.io/daonhan/ralph-sandbox:0.2.3` exists and `:latest` resolves to it.
+- [ ] `npm view @phamvuhoang/ralph version` and `npm view @phamvuhoang/ralph-core version` both return `0.6.3`.
+- [ ] `docker.io/phamvuhoang/ralph-sandbox:0.2.3` exists and `:latest` resolves to it.
 - [ ] The 0.6.3 / 0.2.3 GitHub Releases carry their `.tgz`, SBOM, and cosign attestation.
 
 ---

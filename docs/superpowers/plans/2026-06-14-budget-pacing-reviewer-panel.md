@@ -86,7 +86,7 @@ describe("sleep", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail.** `pnpm --filter @daonhan/ralph-core test -- pacing` → module not found.
+- [ ] **Step 2: Run → fail.** `pnpm --filter @phamvuhoang/ralph-core test -- pacing` → module not found.
 
 - [ ] **Step 3: Implement `pacing.ts`**
 
@@ -131,7 +131,7 @@ export function nextCooldownFactor(
 }
 ```
 
-- [ ] **Step 4: Run → pass.** `pnpm --filter @daonhan/ralph-core test -- pacing`
+- [ ] **Step 4: Run → pass.** `pnpm --filter @phamvuhoang/ralph-core test -- pacing`
 
 - [ ] **Step 5: Commit** — `git add packages/core/src/pacing.ts packages/core/src/__tests__/pacing.test.ts && git commit -m "feat(pacing): abortable sleep + adaptive cooldown helpers"`
 
@@ -180,7 +180,7 @@ describe("resultFromEvent", () => {
 });
 ```
 
-- [ ] **Step 2: Run → fail.** `pnpm --filter @daonhan/ralph-core test -- runner`
+- [ ] **Step 2: Run → fail.** `pnpm --filter @phamvuhoang/ralph-core test -- runner`
 
 - [ ] **Step 3: Implement.** In `runner.ts`:
 
@@ -214,7 +214,7 @@ In the `parsed.type === "result"` branch, replace the `finalResult` assignment w
 - [ ] **Step 4: Export.** In `index.ts` add `StageResult` to the runner export:
       `export { runStage, type StageResult } from "./runner.js";`
 
-- [ ] **Step 5: Run → fail (loop.ts/loop.test still expect string).** Expected — fixed in Task 3. Run `pnpm --filter @daonhan/ralph-core test -- runner` to confirm the runner tests themselves pass; typecheck will flag loop.ts until Task 3.
+- [ ] **Step 5: Run → fail (loop.ts/loop.test still expect string).** Expected — fixed in Task 3. Run `pnpm --filter @phamvuhoang/ralph-core test -- runner` to confirm the runner tests themselves pass; typecheck will flag loop.ts until Task 3.
 
 - [ ] **Step 6: Commit (bundle with Task 3).** Hold.
 
@@ -290,7 +290,7 @@ it("sleeps between iterations when a cooldown is set", async () => {
 
 (Adjust the cooldown test's exact assertions to the implementation; the intent is: a cooldown delays the next iteration and is abortable.)
 
-- [ ] **Step 2: Run → fail.** `pnpm --filter @daonhan/ralph-core test -- loop`
+- [ ] **Step 2: Run → fail.** `pnpm --filter @phamvuhoang/ralph-core test -- loop`
 
 - [ ] **Step 3: Implement loop changes**
 
@@ -339,7 +339,7 @@ if (cooldownMs > 0 && i < iterations) {
 
 > NOTE: this task still calls `runStage` directly via the existing inner block; the `executeStage` extraction is Task 6. Keep the existing render-inside-retry structure, just have it return `StageResult` (it already does after Task 2) and feed `sr` into the accounting above.
 
-- [ ] **Step 4: Run → pass.** `pnpm --filter @daonhan/ralph-core test -- loop` and `-- runner`.
+- [ ] **Step 4: Run → pass.** `pnpm --filter @phamvuhoang/ralph-core test -- loop` and `-- runner`.
 
 - [ ] **Step 5: Commit (bundles Task 2).** `git add packages/core/src/runner.ts packages/core/src/index.ts packages/core/src/loop.ts packages/core/src/__tests__/{runner,loop}.test.ts && git commit -m "feat(loop): track stage cost, enforce --budget, pace with --cooldown + adaptive backoff"`
 
@@ -541,7 +541,7 @@ try {
 
 Import `executeStage` and `type StageResult`; drop now-unused imports (`renderTemplate`, `withRetries`, `backoffFor`, `DEFAULT_BACKOFF_MS`, `posix`) from loop.ts if no longer referenced.
 
-- [ ] **Step 3: Run the FULL existing loop suite → must stay green** (retry, failure, abort, render-failure tests): `pnpm --filter @daonhan/ralph-core test -- loop`. If any retry/failure/abort assertion breaks, the extraction changed behavior — fix until identical.
+- [ ] **Step 3: Run the FULL existing loop suite → must stay green** (retry, failure, abort, render-failure tests): `pnpm --filter @phamvuhoang/ralph-core test -- loop`. If any retry/failure/abort assertion breaks, the extraction changed behavior — fix until identical.
 
 - [ ] **Step 4: Commit** — `git commit -am "refactor: extract executeStage (render+retry+runStage) for reuse"`
 
@@ -790,7 +790,7 @@ export async function runPanel(opts: RunPanelOptions): Promise<StageResult> {
 }
 ```
 
-- [ ] **Step 4: Run → pass.** `pnpm --filter @daonhan/ralph-core test -- panel`
+- [ ] **Step 4: Run → pass.** `pnpm --filter @phamvuhoang/ralph-core test -- panel`
 
 - [ ] **Step 5: Commit** — `git add packages/core/src/panel.ts packages/core/src/__tests__/panel.test.ts && git commit -m "feat(panel): harness-orchestrated reviewer panel (lenses → synth)"`
 

@@ -6,7 +6,7 @@
 
 Report privately via GitHub Security Advisories — open the repository's
 **[Security → Report a vulnerability](https://github.com/phamvuhoang/ralph/security/advisories/new)**
-form — or email **daonhan@gmail.com**. Include a description, reproduction steps, and the
+form — or email **phamvuhoang@gmail.com**. Include a description, reproduction steps, and the
 affected version. You'll get an acknowledgement within a few days and a fix or mitigation plan.
 
 ## Supported versions

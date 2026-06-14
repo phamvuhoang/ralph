@@ -1,8 +1,8 @@
 # Plan: `RALPH_MODEL` env knob to pin the sandbox Claude model
 
-> Source PRD: [daonhan/ralph#35](https://github.com/daonhan/ralph/issues/35) (mirror in `docs/prd/ralph-model.md`) — pass `--model` through to the sandbox `claude` invocation so the run's model is decoupled from the image's frozen CLI default.
+> Source PRD: [phamvuhoang/ralph#35](https://github.com/phamvuhoang/ralph/issues/35) (mirror in `docs/prd/ralph-model.md`) — pass `--model` through to the sandbox `claude` invocation so the run's model is decoupled from the image's frozen CLI default.
 >
-> **Target release**: `@daonhan/ralph-core` **0.7.0** (minor bump from 0.6.1 — new env knob). Driven by release-please from the `feat(core): …` commit that lands the implementation; no manual `package.json` / `.release-please-manifest.json` edits. CLI (`@daonhan/ralph`) is not bumped unless a sibling commit in the same release cycle touches the bins. Sandbox image (`packages/core/templates`) is unaffected.
+> **Target release**: `@phamvuhoang/ralph-core` **0.7.0** (minor bump from 0.6.1 — new env knob). Driven by release-please from the `feat(core): …` commit that lands the implementation; no manual `package.json` / `.release-please-manifest.json` edits. CLI (`@phamvuhoang/ralph`) is not bumped unless a sibling commit in the same release cycle touches the bins. Sandbox image (`packages/core/templates`) is unaffected.
 
 ## Architectural decisions
 

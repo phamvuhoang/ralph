@@ -319,7 +319,7 @@ A husky pre-commit hook runs `lint-staged` (`prettier --ignore-unknown --write` 
 # Install both in a throwaway repo to verify the published artifacts work
 mkdir /tmp/ralph-test && cd /tmp/ralph-test
 npm init -y
-npm i -D /tmp/daonhan-ralph-core-*.tgz /tmp/daonhan-ralph-*.tgz
+npm i -D /tmp/phamvuhoang-ralph-core-*.tgz /tmp/phamvuhoang-ralph-*.tgz
 ./node_modules/.bin/ralph-afk           # → prints usage
 ```
 
@@ -331,8 +331,8 @@ npm i -D /tmp/daonhan-ralph-core-*.tgz /tmp/daonhan-ralph-*.tgz
 pnpm -r build
 (cd packages/core && pnpm pack --pack-destination /tmp/ralph-packs)
 (cd apps/cli      && pnpm pack --pack-destination /tmp/ralph-packs)
-npm i -g /tmp/ralph-packs/daonhan-ralph-core-*.tgz \
-         /tmp/ralph-packs/daonhan-ralph-*.tgz
+npm i -g /tmp/ralph-packs/phamvuhoang-ralph-core-*.tgz \
+         /tmp/ralph-packs/phamvuhoang-ralph-*.tgz
 ralph-afk          # → Usage: ralph-afk <plan-and-prd> <iterations>
 ```
 
