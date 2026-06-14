@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.7.0...ralph-core-v0.8.0) (2026-06-14)
+
+
+### Features
+
+* **core:** add ghafk-issue stage and wire it in gh-main ([97790ab](https://github.com/phamvuhoang/ralph/commit/97790ab3a7b657ffe34251e6cb4264ac4597fcec))
+* **core:** add parseIssueRef issue-ref validator ([0cd28aa](https://github.com/phamvuhoang/ralph/commit/0cd28aa2690c1b93b7d8c3dde3c1e220858bd031))
+* **core:** parse --issue flag in parseFlags ([f3a3d1a](https://github.com/phamvuhoang/ralph/commit/f3a3d1a74dd64e2532294ba4dc42fe45d515aea1))
+* **core:** single-issue ghafk template + extract shared playbook ([5f2386e](https://github.com/phamvuhoang/ralph/commit/5f2386e02511959147987f86427cac9617f253a7))
+* **core:** surface --issue in help and print-config ([60e161e](https://github.com/phamvuhoang/ralph/commit/60e161e16ab1c2ec93e00d8006b191f993d61de9))
+* **core:** swap to issue stage and set RALPH_ISSUE when --issue is given ([4670e13](https://github.com/phamvuhoang/ralph/commit/4670e138dee89fe9c535d5cc2e5aa9c4695efd19))
+* **ghafk:** target a single GitHub issue with --issue ([6cbb769](https://github.com/phamvuhoang/ralph/commit/6cbb76928a807f6fad3e49aa39b74c9d06290fe4))
+
+
+### Bug Fixes
+
+* **core:** reject leading-zero and unsafe issue numbers ([c1fb89e](https://github.com/phamvuhoang/ralph/commit/c1fb89e7a0e4a1d08192736b67a7efbbafbf2958))
+
+
+### Code Refactoring
+
+* **core:** hoist --issue afk guard for a clearer error ([c90be39](https://github.com/phamvuhoang/ralph/commit/c90be39686f21a65d1826516cdf61af4070e0c0e))
+
 ## [0.7.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.6.3...ralph-core-v0.7.0) (2026-06-14)
 
 
