@@ -27,12 +27,15 @@ describe("parseIssueRef", () => {
   it("trims surrounding whitespace", () => {
     expect(parseIssueRef("  42  ")).toBe(42);
   });
-  it.each(["foo", "0", "-3", "42x", "", "#", "owner/repo#", "abc#1x"])(
+  it.each(["foo", "0", "007", "-3", "42x", "", "#", "owner/repo#", "abc#1x"])(
     "rejects %j",
     (bad) => {
       expect(() => parseIssueRef(bad)).toThrow();
     }
   );
+  it("rejects an unsafe, absurdly large number", () => {
+    expect(() => parseIssueRef("99999999999999999999")).toThrow();
+  });
 });
 
 describe("parseFlags --issue", () => {

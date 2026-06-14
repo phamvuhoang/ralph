@@ -42,16 +42,14 @@ export function parseIssueRef(raw: string): number {
   } else if (s.includes("#")) {
     token = s.slice(s.lastIndexOf("#") + 1);
   }
-  if (!/^\d+$/.test(token)) {
+  if (!/^[1-9]\d*$/.test(token)) {
     throw new Error(
       `--issue must be a positive issue number, #N, owner/repo#N, or a GitHub issue URL, got: ${JSON.stringify(raw)}`
     );
   }
   const n = Number.parseInt(token, 10);
-  if (n < 1) {
-    throw new Error(
-      `--issue must be a positive issue number, got: ${JSON.stringify(raw)}`
-    );
+  if (!Number.isSafeInteger(n)) {
+    throw new Error(`--issue number is too large, got: ${JSON.stringify(raw)}`);
   }
   return n;
 }
