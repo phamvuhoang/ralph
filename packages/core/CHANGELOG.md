@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.1](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.9.0...ralph-core-v0.9.1) (2026-06-14)
+
+
+### Miscellaneous Chores
+
+* rebrand daonhan references to phamvuhoang ([f843ee0](https://github.com/phamvuhoang/ralph/commit/f843ee065aa3d0ed5ef4018238f651c9713a15a5))
+* rebrand daonhan references to phamvuhoang ([d72496f](https://github.com/phamvuhoang/ralph/commit/d72496f16f2544a5d7defc16b68616b695d15509))
+* update author name to Henry Pham ([b91ab8b](https://github.com/phamvuhoang/ralph/commit/b91ab8b1c2e39d203bae9b2e9fc23e28b94f1668))
+
 ## [0.9.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.8.1...ralph-core-v0.9.0) (2026-06-14)
 
 
