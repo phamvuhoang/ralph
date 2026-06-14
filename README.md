@@ -231,6 +231,19 @@ ralph-ghafk --watch --watch-interval 300 5     # poll every 5 min, ≤5 iteratio
 
 The trigger label defaults to `ralph` (`RALPH_WATCH_LABEL` to change it). Under `--watch`, `--budget` caps total spend across the whole session; `Ctrl+C` stops cleanly.
 
+### Single-issue mode (`ralph-ghafk` only)
+
+Point the loop at one GitHub issue instead of triaging all open ones:
+
+```bash
+ralph-ghafk --issue 42 5           # bare number
+ralph-ghafk --issue "#42" 5        # hash form
+ralph-ghafk --issue owner/repo#42 5  # cross-repo reference
+ralph-ghafk --issue https://github.com/owner/repo/issues/42 5  # full URL
+```
+
+`<ref>` accepts a bare issue number, `#N`, `owner/repo#N`, or a GitHub issue URL. The loop fetches only that issue and exits when it is complete (the agent emits `<promise>NO MORE TASKS</promise>`). Cannot be combined with `--watch`.
+
 ---
 
 ## Consuming the package in another repo
