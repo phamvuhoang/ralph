@@ -445,4 +445,4 @@ The agent playbooks are self-contained: `packages/core/templates/prompt.md` (pla
 
 ## License
 
-[MIT](./LICENSE) (c) Paul Nguyen.
+[MIT](./LICENSE) (c) Henry Pham.

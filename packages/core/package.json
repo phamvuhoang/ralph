@@ -4,7 +4,7 @@
   "description": "Claude Code AFK orchestration: iteration loop, native-sandbox runner, template renderer.",
   "type": "module",
   "license": "MIT",
-  "author": "Paul Nguyen <phamvuhoang@gmail.com>",
+  "author": "Henry Pham <phamvuhoang@gmail.com>",
   "homepage": "https://github.com/phamvuhoang/ralph/tree/main/packages/core#readme",
   "repository": {
     "type": "git",

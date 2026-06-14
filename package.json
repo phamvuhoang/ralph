@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
-  "author": "Paul Nguyen <phamvuhoang@gmail.com>",
+  "author": "Henry Pham <phamvuhoang@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/phamvuhoang/ralph.git"

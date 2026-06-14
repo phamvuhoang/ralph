@@ -50,4 +50,4 @@ Full usage, setup, environment variables, and architecture are in the
 
 ## License
 
-[MIT](https://github.com/phamvuhoang/ralph/blob/main/LICENSE) © Paul Nguyen.
+[MIT](https://github.com/phamvuhoang/ralph/blob/main/LICENSE) © Henry Pham.

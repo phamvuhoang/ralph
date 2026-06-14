@@ -39,4 +39,4 @@ setup, per-OS notes, and the full flag/env reference are in the
 
 ## License
 
-[MIT](https://github.com/phamvuhoang/ralph/blob/main/LICENSE) © Paul Nguyen.
+[MIT](https://github.com/phamvuhoang/ralph/blob/main/LICENSE) © Henry Pham.
