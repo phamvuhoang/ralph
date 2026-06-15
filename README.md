@@ -122,6 +122,83 @@ gh auth status
 
 ---
 
+## Recipes — when to reach for Ralph
+
+Each recipe is a real scenario → the command that fits it. Flags and env vars are detailed in the sections below; these are the combinations worth memorizing.
+
+### Ship a plan/PRD while you sleep
+
+You have a written plan + PRD and want it implemented end-to-end, unattended. Fork to the background, hold a wake-lock, and get a notification when it finishes or wedges:
+
+```bash
+ralph-afk --detach --notify "./docs/plans/inventory.md ./docs/prd/PRD-Inventory.md" 50
+tail -f .ralph-tmp/logs/detached-*.log     # follow along from any shell
+```
+
+### Burn down your GitHub issue backlog
+
+Let Ralph triage open issues and work them one per iteration — it picks the task, implements, commits, and closes/comments:
+
+```bash
+ralph-ghafk 10
+```
+
+### Fix one specific issue and stop
+
+Point it at a single issue instead of triaging everything; it exits as soon as that issue is done:
+
+```bash
+ralph-ghafk --issue 42 5
+ralph-ghafk --issue https://github.com/phamvuhoang/ralph/issues/42 5   # URL form also works
+```
+
+### Keep spend on a leash for an exploratory run
+
+Cap the dollar cost of a spike — committed work is kept, the loop halts the moment cumulative spend crosses the ceiling:
+
+```bash
+ralph-afk --budget 5 "./docs/plans/spike.md" 20
+```
+
+### Get a higher-confidence review
+
+Swap the single reviewer for a multi-lens review panel (`correctness` / `security` / `tests`) that lands one consolidated `fix(review):` commit:
+
+```bash
+ralph-afk --review-panel "./docs/plans/feature.md ./docs/prd/feature.md" 30
+```
+
+### Careful long run: budget + pacing + panel together
+
+The combination for an overnight run you want to be both cost-bounded and thorough, while staying gentle on rate limits:
+
+```bash
+ralph-afk --budget 10 --cooldown 2000 --review-panel "./docs/plans/migration.md" 40
+```
+
+### Run as a daemon that wakes on new work
+
+Idle until an open issue is labelled `ralph`, run a short loop, then go back to sleep. `--budget` spans the whole daemon lifetime:
+
+```bash
+ralph-ghafk --watch --watch-interval 300 5     # poll every 5 min, ≤5 iterations per trigger
+```
+
+### Drive a repo other than the current directory
+
+```bash
+RALPH_WORKSPACE=~/code/other-repo ralph-afk "./docs/plans/feature.md" 10
+```
+
+### Pin the model, or sanity-check config first
+
+```bash
+RALPH_MODEL=opus ralph-afk "./docs/plans/feature.md" 10   # pass-through to claude --model
+ralph-afk --print-config                                  # resolve workspace/runner/sandbox, then exit
+```
+
+---
+
 ## `ralph-afk` — plan/PRD loop
 
 ### Usage
