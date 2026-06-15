@@ -25,6 +25,18 @@ Agent playbooks: [`packages/core/templates/prompt.md`](./packages/core/templates
 
 ---
 
+## Highlights
+
+Three things make Ralph more than a `while`-loop around `claude`:
+
+**🧠 It remembers.** Ralph keeps a git-tracked `.ralph/LEARNINGS.md` in your repo and injects it into every prompt. As it works it appends durable, reusable knowledge — conventions, gotchas, decisions _and their why_, dead ends — so each iteration starts smarter instead of relearning the repo from scratch. The file rides in the work commit (visible in diffs/PRs); delete it to reset Ralph's memory.
+
+**📐 It thinks before it codes.** Every iteration runs an adaptive **brainstorm → spec → plan → TDD** workflow. Hand it a crisp plan and it implements directly; hand it a vague one ("make it better", a bare issue with no acceptance criteria) and it plays both sides of a brainstorm — generating the clarifying questions, answering each with the most reasonable repo-grounded default, recording the assumptions to `.ralph/specs/`, and writing a checklist plan to `.ralph/plans/` — then implements test-first. All autonomously: AFK runs detached, so it never stops to ask, it records its reasoning and proceeds.
+
+**🔎 It reviews itself, on a budget.** Past the single reviewer, an opt-in [review panel](#cost-control-pacing--review-panel) runs read-only `correctness` / `security` / `tests` lenses, then an adversarial verifier that tries to _refute_ each finding (defaulting to reject when unsure) before a single `fix(review):` commit lands only the confirmed defects. Cap total spend with `--budget`, pace against rate limits with `--cooldown`, and walk away with `--detach --notify`.
+
+---
+
 ## Architecture (AFK loops)
 
 ```
@@ -118,6 +130,83 @@ For `gh auth login` pick: `GitHub.com` → `HTTPS` → `Y` (authenticate Git) �
 ```bash
 ls -la ~/.claude/.credentials.json ~/.claude.json
 gh auth status
+```
+
+---
+
+## Recipes — when to reach for Ralph
+
+Each recipe is a real scenario → the command that fits it. Flags and env vars are detailed in the sections below; these are the combinations worth memorizing.
+
+### Ship a plan/PRD while you sleep
+
+You have a written plan + PRD and want it implemented end-to-end, unattended. Fork to the background, hold a wake-lock, and get a notification when it finishes or wedges:
+
+```bash
+ralph-afk --detach --notify "./docs/plans/inventory.md ./docs/prd/PRD-Inventory.md" 50
+tail -f .ralph-tmp/logs/detached-*.log     # follow along from any shell
+```
+
+### Burn down your GitHub issue backlog
+
+Let Ralph triage open issues and work them one per iteration — it picks the task, implements, commits, and closes/comments:
+
+```bash
+ralph-ghafk 10
+```
+
+### Fix one specific issue and stop
+
+Point it at a single issue instead of triaging everything; it exits as soon as that issue is done:
+
+```bash
+ralph-ghafk --issue 42 5
+ralph-ghafk --issue https://github.com/phamvuhoang/ralph/issues/42 5   # URL form also works
+```
+
+### Keep spend on a leash for an exploratory run
+
+Cap the dollar cost of a spike — committed work is kept, the loop halts the moment cumulative spend crosses the ceiling:
+
+```bash
+ralph-afk --budget 5 "./docs/plans/spike.md" 20
+```
+
+### Get a higher-confidence review
+
+Swap the single reviewer for a multi-lens review panel (`correctness` / `security` / `tests`) that lands one consolidated `fix(review):` commit:
+
+```bash
+ralph-afk --review-panel "./docs/plans/feature.md ./docs/prd/feature.md" 30
+```
+
+### Careful long run: budget + pacing + panel together
+
+The combination for an overnight run you want to be both cost-bounded and thorough, while staying gentle on rate limits:
+
+```bash
+ralph-afk --budget 10 --cooldown 2000 --review-panel "./docs/plans/migration.md" 40
+```
+
+### Run as a daemon that wakes on new work
+
+Idle until an open issue is labelled `ralph`, run a short loop, then go back to sleep. `--budget` spans the whole daemon lifetime:
+
+```bash
+ralph-ghafk --watch --watch-interval 300 5     # poll every 5 min, ≤5 iterations per trigger
+```
+
+### Drive a repo other than the current directory
+
+```bash
+RALPH_WORKSPACE=~/code/other-repo ralph-afk "./docs/plans/feature.md" 10
+```
+
+### Pin the model, or sanity-check config first
+
+```bash
+RALPH_MODEL=opus ralph-afk "./docs/plans/feature.md" 10   # pass-through to claude --model
+ralph-afk --print-config                                  # resolve workspace/runner/sandbox, then exit
 ```
 
 ---
