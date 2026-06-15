@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.9.1...ralph-core-v0.10.0) (2026-06-15)
+
+
+### Features
+
+* **core:** adversarial verify pass + richer panel output ([09f988c](https://github.com/phamvuhoang/ralph/commit/09f988c8f2d353a84c4a848a8bac8fc3c50fbc87))
+* **core:** adversarial verify pass + richer review-panel output ([5a16ac2](https://github.com/phamvuhoang/ralph/commit/5a16ac2165a88b4f5917e36f9203466b30903691))
+
+
+### Bug Fixes
+
+* **core:** enforce verdicts contract + honest synth dirty-state report ([843dee1](https://github.com/phamvuhoang/ralph/commit/843dee190fc812efebc94caebebc522de927f477))
+
 ## [0.9.1](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.9.0...ralph-core-v0.9.1) (2026-06-14)
 
 
