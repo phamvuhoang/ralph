@@ -55,3 +55,24 @@ describe("parseFlags --issue", () => {
     expect(() => parseFlags(["--issue", "foo", "5"])).toThrow();
   });
 });
+
+describe("parseFlags --branch / --branch-prefix", () => {
+  it("parses --branch and --branch-prefix", () => {
+    const f = parseFlags([
+      "--branch",
+      "worktree",
+      "--branch-prefix",
+      "bot/",
+      "5",
+    ]);
+    expect(f.branch).toBe("worktree");
+    expect(f.branchPrefix).toBe("bot/");
+    expect(f.rest).toEqual(["5"]);
+  });
+  it("rejects an invalid --branch value", () => {
+    expect(() => parseFlags(["--branch", "nope"])).toThrow(/--branch must be/);
+  });
+  it("errors when --branch has no value", () => {
+    expect(() => parseFlags(["--branch"])).toThrow(/--branch requires a value/);
+  });
+});
