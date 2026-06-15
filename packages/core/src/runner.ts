@@ -17,6 +17,11 @@ import {
   type StreamJson,
   type ToolTrack,
 } from "./stream-render.js";
+import {
+  RateLimitError,
+  isLimitResult,
+  resetsAtFromEvent,
+} from "./rate-limit.js";
 
 export type RunStageOptions = {
   signal?: AbortSignal;
@@ -255,6 +260,7 @@ function streamClaude(
       isError: false,
       apiErrorStatus: null,
     };
+    let lastResetsAt: number | null = null;
     const stderrTail: string[] = [];
     let settled = false;
     let onAbort = (): void => {};
@@ -315,6 +321,10 @@ function streamClaude(
         return;
       }
       renderEvent(parsed, toolMap);
+      if (parsed.type === "rate_limit_event") {
+        const r = resetsAtFromEvent(parsed);
+        if (r != null) lastResetsAt = r;
+      }
       if (parsed.type === "result") {
         final = resultFromEvent(parsed);
         // Arm one-shot post-result grace timer to recover from claude-CLI
@@ -331,7 +341,13 @@ function streamClaude(
             } catch {
               // Already dead; close handler will be a no-op via settle guard.
             }
-            resolveOnce(final);
+            if (final && isLimitResult(final)) {
+              rejectOnce(
+                new RateLimitError(final.result || "rate limit", lastResetsAt)
+              );
+            } else {
+              resolveOnce(final);
+            }
           }, graceMs);
           graceTimer.unref?.();
         }
@@ -356,6 +372,12 @@ function streamClaude(
       rejectOnce(err);
     });
     child.on("close", (code) => {
+      if (final && isLimitResult(final)) {
+        rejectOnce(
+          new RateLimitError(final.result || "rate limit", lastResetsAt)
+        );
+        return;
+      }
       if (code !== 0) {
         rejectOnce(
           new Error(`claude exited with ${code}\n${stderrTail.join("\n")}`)
