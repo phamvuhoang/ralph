@@ -29,6 +29,7 @@ export async function withRetries<T>(
     } catch (err) {
       lastErr = err;
       if ((err as Error)?.name === "AbortError") throw err;
+      if ((err as Error)?.name === "RateLimitError") throw err;
       if (attempt === opts.max) break;
       opts.onAttempt?.(attempt + 1, err);
       const backoff =
