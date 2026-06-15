@@ -25,6 +25,18 @@ Agent playbooks: [`packages/core/templates/prompt.md`](./packages/core/templates
 
 ---
 
+## Highlights
+
+Three things make Ralph more than a `while`-loop around `claude`:
+
+**🧠 It remembers.** Ralph keeps a git-tracked `.ralph/LEARNINGS.md` in your repo and injects it into every prompt. As it works it appends durable, reusable knowledge — conventions, gotchas, decisions _and their why_, dead ends — so each iteration starts smarter instead of relearning the repo from scratch. The file rides in the work commit (visible in diffs/PRs); delete it to reset Ralph's memory.
+
+**📐 It thinks before it codes.** Every iteration runs an adaptive **brainstorm → spec → plan → TDD** workflow. Hand it a crisp plan and it implements directly; hand it a vague one ("make it better", a bare issue with no acceptance criteria) and it plays both sides of a brainstorm — generating the clarifying questions, answering each with the most reasonable repo-grounded default, recording the assumptions to `.ralph/specs/`, and writing a checklist plan to `.ralph/plans/` — then implements test-first. All autonomously: AFK runs detached, so it never stops to ask, it records its reasoning and proceeds.
+
+**🔎 It reviews itself, on a budget.** Past the single reviewer, an opt-in [review panel](#cost-control-pacing--review-panel) runs read-only `correctness` / `security` / `tests` lenses, then an adversarial verifier that tries to _refute_ each finding (defaulting to reject when unsure) before a single `fix(review):` commit lands only the confirmed defects. Cap total spend with `--budget`, pace against rate limits with `--cooldown`, and walk away with `--detach --notify`.
+
+---
+
 ## Architecture (AFK loops)
 
 ```
