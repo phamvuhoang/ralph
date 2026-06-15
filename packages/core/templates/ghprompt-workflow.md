@@ -1,5 +1,12 @@
 @include:superpowers.md
 
+# RECONCILE BEFORE SELECTING
+
+Before picking an issue, reconcile against reality: check recent `git log` and the working
+tree to see whether the work for an open issue is already implemented and committed. If it
+is, close/comment on the issue rather than redoing the work. Treat issue checklists as
+hints, not truth — committed code is done.
+
 # EXPLORATION
 
 Explore the repo.
