@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.12.0...ralph-core-v0.13.0) (2026-06-15)
+
+
+### Features
+
+* --verify and --apply-review run modes for ralph-afk ([5e5d7ec](https://github.com/phamvuhoang/ralph/commit/5e5d7ec7e60f38f63b87529d94f1913ef6d6bf9d))
+* **core:** add --verify / --apply-review flags ([2c8690d](https://github.com/phamvuhoang/ralph/commit/2c8690dfafeed98a1d33b9bbf213965a28faa2da))
+* **core:** register verifier + apply-review stages, wire onto afk config ([8192e6c](https://github.com/phamvuhoang/ralph/commit/8192e6c4d3e454e88295ad45045167e193e7fb47))
+* **core:** verify + apply-review playbook templates ([17001b6](https://github.com/phamvuhoang/ralph/commit/17001b672a77aa9f35b4e845de4c0cba328ac085))
+* **core:** wire --verify / --apply-review modes into run-bin ([cb9dc7c](https://github.com/phamvuhoang/ralph/commit/cb9dc7c9424e4f1b0e51c1186deaf1b381674eb3))
+
 ## [0.12.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.11.0...ralph-core-v0.12.0) (2026-06-15)
 
 
