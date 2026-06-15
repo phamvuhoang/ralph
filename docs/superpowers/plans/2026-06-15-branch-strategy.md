@@ -732,23 +732,30 @@ Append to `branch.test.ts`:
 
 ```ts
 import { ensureRalphTmpIgnored } from "../branch.js";
-import { isPathIgnored } from "../git.js";
 
 describe("ensureRalphTmpIgnored", () => {
   it("adds .ralph-tmp/ to .gitignore (creating the file) and is idempotent", () => {
     const dir = tmpRepo2();
-    expect(isPathIgnored(dir, ".ralph-tmp")).toBe(false);
     ensureRalphTmpIgnored(dir);
-    expect(isPathIgnored(dir, ".ralph-tmp")).toBe(true);
-    const before = readFileSync(join(dir, ".gitignore"), "utf8");
+    const after = readFileSync(join(dir, ".gitignore"), "utf8");
+    expect(after).toContain(".ralph-tmp/");
     ensureRalphTmpIgnored(dir); // second call must not duplicate
-    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toBe(before);
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toBe(after);
   });
-  it("leaves .ralph tracked (only ignores .ralph-tmp)", () => {
+  it("does not duplicate when a .ralph-tmp entry already exists", () => {
+    const dir = tmpRepo2();
+    writeFileSync(join(dir, ".gitignore"), ".ralph-tmp\n");
+    ensureRalphTmpIgnored(dir);
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toBe(".ralph-tmp\n");
+  });
+  it("only adds .ralph-tmp, never .ralph itself", () => {
     const dir = tmpRepo2();
     ensureRalphTmpIgnored(dir);
-    expect(isPathIgnored(dir, ".ralph")).toBe(false);
-    expect(isPathIgnored(dir, ".ralph/LEARNINGS.md")).toBe(false);
+    const lines = readFileSync(join(dir, ".gitignore"), "utf8")
+      .split("\n")
+      .map((l) => l.trim());
+    expect(lines).not.toContain(".ralph");
+    expect(lines).not.toContain(".ralph/");
   });
   it("no-ops outside a git repo", () => {
     const dir = mkdtempSync(join(tmpdir(), "ralph-nogit-"));
@@ -766,20 +773,33 @@ Expected: FAIL — `ensureRalphTmpIgnored` not exported.
 - [ ] **Step 3: Implement in `branch.ts`** (add `appendFileSync`, `existsSync` to the `node:fs` import)
 
 ```ts
-import { appendFileSync, existsSync } from "node:fs"; // merge into existing node:fs import
-import { isPathIgnored } from "./git.js"; // merge into existing ./git.js import
+import { appendFileSync } from "node:fs"; // merge into existing node:fs import
 
 /**
  * Ensure `.ralph-tmp/` is gitignored in the workspace. No-op outside a git repo
- * or when already ignored. Creates .gitignore if absent. Never ignores `.ralph/`
- * (LEARNINGS.md + config.json are durable, git-tracked memory).
+ * or when a `.ralph-tmp` entry already exists. Creates .gitignore if absent.
+ * Never ignores `.ralph/` (LEARNINGS.md + config.json are durable, git-tracked
+ * memory).
+ *
+ * Idempotency is checked by scanning .gitignore text — NOT `git check-ignore`,
+ * which only matches a trailing-slash dir pattern once the dir exists on disk
+ * (so it would re-append every run before the first stage creates .ralph-tmp/).
  */
 export function ensureRalphTmpIgnored(workspaceDir: string): void {
   if (!isGitRepo(workspaceDir)) return;
-  if (isPathIgnored(workspaceDir, ".ralph-tmp")) return;
   const path = join(workspaceDir, ".gitignore");
-  const needsNl =
-    existsSync(path) && !readFileSync(path, "utf8").endsWith("\n");
+  let text = "";
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    text = "";
+  }
+  const already = text
+    .split("\n")
+    .map((l) => l.trim())
+    .some((l) => l === ".ralph-tmp" || l === ".ralph-tmp/");
+  if (already) return;
+  const needsNl = text.length > 0 && !text.endsWith("\n");
   appendFileSync(path, `${needsNl ? "\n" : ""}.ralph-tmp/\n`);
 }
 
