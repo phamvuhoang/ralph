@@ -333,6 +333,21 @@ ralph-ghafk --issue https://github.com/owner/repo/issues/42 5  # full URL
 
 `<ref>` accepts a bare issue number, `#N`, `owner/repo#N`, or a GitHub issue URL. The loop fetches only that issue and exits when it is complete (the agent emits `<promise>NO MORE TASKS</promise>`). Cannot be combined with `--watch`.
 
+### Branch strategy
+
+| Flag                  | Default   | What it does                                                                                                                                    |
+| --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--branch <mode>`     | `current` | Isolation strategy: `current` (commit on the active branch), `branch` (create + switch to a new branch), or `worktree` (isolated git worktree). |
+| `--branch-prefix <p>` | `ralph/`  | Prefix for the generated branch name. Combined with a plan-slug (`ralph-afk`) or timestamp (`ralph-ghafk`).                                     |
+
+Strategy is resolved **once at startup**, in this order: `--branch`/`RALPH_BRANCH` flag/env → `.ralph/config.json` (`branchStrategy`/`branchPrefix` keys) → interactive TTY prompt (offers "Remember for this repo?" which writes `.ralph/config.json`) → default `current`. Detached and non-TTY runs never prompt; they fall back through flag/env/config to `current`.
+
+- **`current`** — commits land on whatever branch is checked out (today's default behavior).
+- **`branch`** — Ralph creates and switches to `<prefix><slug>` before the loop starts (slug = basename of the plan file for `ralph-afk`; a timestamp for `ralph-ghafk`; `-2`/`-3` suffix on name collision).
+- **`worktree`** — Ralph creates an isolated git worktree at `<workspace>/.ralph-tmp/worktrees/<slug>`; the entire run happens there. The worktree is **not** removed automatically — run `git worktree remove <path>` when done.
+
+Ralph also warns at startup if the working tree has uncommitted tracked changes under `current` or `branch` mode, because dirty trees disable the review panel's read-only enforcement.
+
 ---
 
 ## Consuming the package in another repo
@@ -376,6 +391,8 @@ npx -y @phamvuhoang/ralph ralph-afk "<plan-and-prd>" 5
 | `RALPH_MODEL`            | _(unset → CLI default)_      | Pins the Claude model. When non-empty, `--model <value>` is passed through to the `claude` CLI for every stage. Empty/whitespace = unset. Pass-through: the `claude` CLI owns validation.                             |
 | `RALPH_REVIEW_LENSES`    | `correctness,security,tests` | Comma-separated lens list for the reviewer panel. Setting it implies `--review-panel`.                                                                                                                                |
 | `RALPH_WATCH_LABEL`      | `ralph`                      | Issue label that gates a `--watch` run (`ralph-ghafk`).                                                                                                                                                               |
+| `RALPH_BRANCH`           | _(unset → `current`)_        | Branch isolation strategy: `current`, `branch`, or `worktree`. Overrides `.ralph/config.json`; overridden by `--branch`.                                                                                              |
+| `RALPH_BRANCH_PREFIX`    | `ralph/`                     | Prefix for the generated branch/worktree name. Overrides `.ralph/config.json`; overridden by `--branch-prefix`.                                                                                                       |
 | `NO_COLOR` / `TERM=dumb` | _(unset)_                    | Disable ANSI color in Ralph's own output. Color is also auto-disabled when stdout/stderr is not a TTY, so piping to a file stays clean.                                                                               |
 
 ---
