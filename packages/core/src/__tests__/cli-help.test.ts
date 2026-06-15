@@ -103,3 +103,26 @@ describe("parseFlags --branch / --branch-prefix", () => {
     expect(() => parseFlags(["--branch"])).toThrow(/--branch requires a value/);
   });
 });
+
+describe("parseFlags --verify / --apply-review", () => {
+  it("parses --verify (boolean)", () => {
+    const f = parseFlags(["--verify", "plan.md prd.md"]);
+    expect(f.verify).toBe(true);
+    expect(f.rest).toEqual(["plan.md prd.md"]);
+  });
+  it("parses --apply-review <doc>", () => {
+    const f = parseFlags(["--apply-review", "review.md", "10"]);
+    expect(f.applyReview).toBe("review.md");
+    expect(f.rest).toEqual(["10"]);
+  });
+  it("errors when --apply-review has no value", () => {
+    expect(() => parseFlags(["--apply-review"])).toThrow(
+      /--apply-review requires a value/
+    );
+  });
+  it("defaults verify false and applyReview undefined", () => {
+    const f = parseFlags(["5"]);
+    expect(f.verify).toBe(false);
+    expect(f.applyReview).toBeUndefined();
+  });
+});

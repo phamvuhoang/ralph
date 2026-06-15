@@ -345,6 +345,27 @@ ralph-ghafk --issue https://github.com/owner/repo/issues/42 5  # full URL
 
 `<ref>` accepts a bare issue number, `#N`, `owner/repo#N`, or a GitHub issue URL. The loop fetches only that issue and exits when it is complete (the agent emits `<promise>NO MORE TASKS</promise>`). Cannot be combined with `--watch`.
 
+### Verify & apply-review modes (`ralph-afk` only)
+
+Two alternate `ralph-afk` modes reuse the loop's resilience and reconcile-against-git behavior but swap the gate stage. Both are distinct from `--review-panel` (which reviews Ralph's _own_ diff). They are mutually exclusive with each other and with `--issue` / `--watch`.
+
+| Flag                   | Default | What it does                                                                                                                                    |
+| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--verify`             | off     | Read-only: reconcile the plan against git + working tree, run the test/type suites, and write a report. One pass; takes no iterations argument. |
+| `--apply-review <doc>` | off     | Fix the actionable findings of an external code-review document — one finding per iteration — recording deferred ones and skipping cosmetics.   |
+
+```bash
+# Re-verify a plan without changing anything; writes .ralph-tmp/verify-report.md
+ralph-afk --verify "./docs/plans/feature.md ./docs/prd/feature.md"
+
+# Apply an external code review, fixing actionable findings (≤ 20 iterations)
+ralph-afk --apply-review ./code-review.md 20
+```
+
+**`--verify`** runs a single read-only pass: it classifies every plan task as done / gap / deferred (with `file:line` or commit evidence), runs the suites, and writes a report to `.ralph-tmp/verify-report.md` (gitignored scratch). It is _instructed_ not to commit or edit sources — that is a playbook rule, not a hard sandbox guarantee (stages still run with `bypassPermissions`), so treat the no-commit behavior as a strong convention. Any positional iterations count is ignored (verify is one-shot).
+
+**`--apply-review <doc>`** runs the normal implement→review loop, but the gate triages an external review document: actionable findings are fixed one per iteration (each `fix(review):`-committed, after reconciling against git so already-fixed items are skipped), deferred/follow-up findings are appended to `.ralph/review-followups.md` (git-tracked backlog), and cosmetic ones are recorded as skipped. The loop ends when no actionable findings remain. `--review-panel`, `--budget`, and `--cooldown` all compose with it.
+
 ### Branch strategy
 
 | Flag                  | Default   | What it does                                                                                                                                    |
