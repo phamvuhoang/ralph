@@ -21,6 +21,8 @@ export type CliFlags = {
   issue?: number;
   maxWaitMs?: number;
   fresh: boolean;
+  verify: boolean;
+  applyReview?: string;
   branch?: "current" | "branch" | "worktree";
   branchPrefix?: string;
   rest: string[];
@@ -96,6 +98,9 @@ export function parseFlags(argv: string[]): CliFlags {
   let maxWaitMs: number | undefined;
   let expectingMaxWait = false;
   let fresh = false;
+  let verify = false;
+  let applyReview: string | undefined;
+  let expectingApplyReview = false;
   let branch: "current" | "branch" | "worktree" | undefined;
   let expectingBranch = false;
   let branchPrefix: string | undefined;
@@ -158,6 +163,11 @@ export function parseFlags(argv: string[]): CliFlags {
       expectingMaxWait = false;
       continue;
     }
+    if (expectingApplyReview) {
+      applyReview = a;
+      expectingApplyReview = false;
+      continue;
+    }
     if (expectingBranch) {
       if (a !== "current" && a !== "branch" && a !== "worktree") {
         throw new Error(
@@ -189,6 +199,8 @@ export function parseFlags(argv: string[]): CliFlags {
     else if (a === "--issue") expectingIssue = true;
     else if (a === "--max-wait") expectingMaxWait = true;
     else if (a === "--fresh") fresh = true;
+    else if (a === "--verify") verify = true;
+    else if (a === "--apply-review") expectingApplyReview = true;
     else if (a === "--branch") expectingBranch = true;
     else if (a === "--branch-prefix") expectingBranchPrefix = true;
     else rest.push(a);
@@ -213,6 +225,9 @@ export function parseFlags(argv: string[]): CliFlags {
   }
   if (expectingMaxWait) {
     throw new Error("--max-wait requires a value");
+  }
+  if (expectingApplyReview) {
+    throw new Error("--apply-review requires a value");
   }
   if (expectingBranch) {
     throw new Error("--branch requires a value");
@@ -240,6 +255,8 @@ export function parseFlags(argv: string[]): CliFlags {
     issue,
     maxWaitMs,
     fresh,
+    verify,
+    applyReview,
     branch,
     branchPrefix,
     rest,
@@ -303,6 +320,8 @@ Flags:
   --issue <ref>       target a single GitHub issue (number, #N, owner/repo#N, or issue URL); loop exits when it is done (ghafk-only; default: off)
   --max-wait <dur>    cap the wait when rate-limited before halting (e.g. 90m, 6h; default 6h)
   --fresh             ignore any saved resume state and start from iteration 1
+  --verify            read-only: reconcile the plan against git, run the suites, write a report; make no commits (ralph-afk)
+  --apply-review <doc>  fix the actionable findings of a code-review document; track follow-ups (ralph-afk)
 
 Environment variables:
   RALPH_WORKSPACE   host dir Claude runs against (default: cwd)
@@ -337,6 +356,7 @@ export type PrintConfigOptions = {
   watchIntervalSec?: number;
   issue?: number;
   maxWaitMs?: number;
+  mode?: string;
   branchStrategy?: "current" | "branch" | "worktree";
   branchPrefix?: string;
 };
@@ -361,6 +381,7 @@ export function printConfig(
     watchIntervalSec,
     issue,
     maxWaitMs,
+    mode,
     branchStrategy,
     branchPrefix,
   } = opts;
@@ -401,6 +422,7 @@ export function printConfig(
 
   process.stdout.write(`[${bin}] resolved config
   version               ${bin} ${cli} (core ${core})
+  mode                  ${mode ?? "afk"}
   RALPH_WORKSPACE       ${workspaceDir}${process.env.RALPH_WORKSPACE ? "" : "  (default: cwd)"}
   packageDir            ${packageDir}
   RALPH_RUNNER          ${runner}${process.env.RALPH_RUNNER ? "" : "  (default)"}
