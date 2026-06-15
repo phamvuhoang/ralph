@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.10.0...ralph-core-v0.11.0) (2026-06-15)
+
+
+### Features
+
+* configurable branch strategy (current/branch/worktree) for AFK bins ([983a403](https://github.com/phamvuhoang/ralph/commit/983a403b2cd65f57c26f7d8a97bced16c5ffba51))
+* **core:** add --branch / --branch-prefix flags ([2adce13](https://github.com/phamvuhoang/ralph/commit/2adce1340378bb4d2b970a6e5597909d2ed2019f))
+* **core:** branch strategy module (slugify, config, resolveBranch, gitignore, dirty warning) ([ca22a03](https://github.com/phamvuhoang/ralph/commit/ca22a03f2409bf3f93567828de29ed317092f087))
+* **core:** wire branch strategy into run-bin + print-config ([5edf2dd](https://github.com/phamvuhoang/ralph/commit/5edf2dda57f45e13497dca560f4feb40c1408750))
+
+
+### Code Refactoring
+
+* **core:** extract shared git helpers into git.ts ([9810bc6](https://github.com/phamvuhoang/ralph/commit/9810bc693a3612121a84248bb4acd807da98089f))
+
 ## [0.10.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.9.1...ralph-core-v0.10.0) (2026-06-15)
 
 

@@ -21,6 +21,8 @@ export type CliFlags = {
   issue?: number;
   maxWaitMs?: number;
   fresh: boolean;
+  branch?: "current" | "branch" | "worktree";
+  branchPrefix?: string;
   rest: string[];
 };
 
@@ -94,6 +96,10 @@ export function parseFlags(argv: string[]): CliFlags {
   let maxWaitMs: number | undefined;
   let expectingMaxWait = false;
   let fresh = false;
+  let branch: "current" | "branch" | "worktree" | undefined;
+  let expectingBranch = false;
+  let branchPrefix: string | undefined;
+  let expectingBranchPrefix = false;
   const rest: string[] = [];
   for (const a of argv) {
     if (expectingMaxRetries) {
@@ -152,6 +158,21 @@ export function parseFlags(argv: string[]): CliFlags {
       expectingMaxWait = false;
       continue;
     }
+    if (expectingBranch) {
+      if (a !== "current" && a !== "branch" && a !== "worktree") {
+        throw new Error(
+          `--branch must be one of current|branch|worktree, got: ${JSON.stringify(a)}`
+        );
+      }
+      branch = a;
+      expectingBranch = false;
+      continue;
+    }
+    if (expectingBranchPrefix) {
+      branchPrefix = a;
+      expectingBranchPrefix = false;
+      continue;
+    }
     if (a === "-h" || a === "--help") help = true;
     else if (a === "-V" || a === "--version") version = true;
     else if (a === "--print-config") printConfig = true;
@@ -168,6 +189,8 @@ export function parseFlags(argv: string[]): CliFlags {
     else if (a === "--issue") expectingIssue = true;
     else if (a === "--max-wait") expectingMaxWait = true;
     else if (a === "--fresh") fresh = true;
+    else if (a === "--branch") expectingBranch = true;
+    else if (a === "--branch-prefix") expectingBranchPrefix = true;
     else rest.push(a);
   }
   if (expectingMaxRetries) {
@@ -191,6 +214,12 @@ export function parseFlags(argv: string[]): CliFlags {
   if (expectingMaxWait) {
     throw new Error("--max-wait requires a value");
   }
+  if (expectingBranch) {
+    throw new Error("--branch requires a value");
+  }
+  if (expectingBranchPrefix) {
+    throw new Error("--branch-prefix requires a value");
+  }
   if (log !== undefined && !detach) {
     throw new Error("--log is only meaningful with --detach");
   }
@@ -211,6 +240,8 @@ export function parseFlags(argv: string[]): CliFlags {
     issue,
     maxWaitMs,
     fresh,
+    branch,
+    branchPrefix,
     rest,
   };
 }
@@ -265,6 +296,8 @@ Flags:
   --budget <usd>      stop the loop when cumulative stage cost reaches this USD ceiling (default: off)
   --cooldown <ms>     wait this many milliseconds between iterations; adaptive backoff doubles on throttle (default: 0)
   --review-panel      replace the single reviewer stage with correctness/security/tests lens reviewers + one synth commit (default: off)
+  --branch <mode>     where Ralph commits: current (default) | branch (new branch) | worktree (isolated checkout)
+  --branch-prefix <p> branch name prefix for branch/worktree modes (default: ralph/)
   --watch             poll for labelled GitHub issues and run the loop whenever work is found (ghafk-only; default: off)
   --watch-interval <sec>  seconds between polls in watch mode (default: 300)
   --issue <ref>       target a single GitHub issue (number, #N, owner/repo#N, or issue URL); loop exits when it is done (ghafk-only; default: off)
@@ -284,6 +317,8 @@ Environment variables:
   RALPH_REVIEW_LENSES   comma-separated lens list for --review-panel (default: correctness,security,tests).
   RALPH_WATCH_LABEL     issue label to poll for in watch mode (default: "ralph").
   RALPH_MAX_WAIT        default rate-limit wait cap (seconds or 90m/6h; default 6h).
+  RALPH_BRANCH          default branch strategy (current|branch|worktree) when --branch is absent.
+  RALPH_BRANCH_PREFIX   default branch-name prefix (default: "ralph/").
 `);
 }
 
@@ -302,6 +337,8 @@ export type PrintConfigOptions = {
   watchIntervalSec?: number;
   issue?: number;
   maxWaitMs?: number;
+  branchStrategy?: "current" | "branch" | "worktree";
+  branchPrefix?: string;
 };
 
 export function printConfig(
@@ -324,6 +361,8 @@ export function printConfig(
     watchIntervalSec,
     issue,
     maxWaitMs,
+    branchStrategy,
+    branchPrefix,
   } = opts;
   const core = readCoreVersion();
   const cli = cliVersion ?? "?";
@@ -358,6 +397,7 @@ export function printConfig(
     ? `on (every ${watchIntervalSec ?? 300}s, label "${watchLabel}")`
     : "off";
   const issueStatus = issue != null ? `#${issue}` : "off";
+  const branchStatus = `${branchStrategy ?? "current"} (prefix "${branchPrefix ?? "ralph/"}")`;
 
   process.stdout.write(`[${bin}] resolved config
   version               ${bin} ${cli} (core ${core})
@@ -374,6 +414,7 @@ export function printConfig(
   cooldown              ${cooldownStatus}
   max-wait              ${maxWaitMs != null ? `${Math.round(maxWaitMs / 60000)}m` : "6h (default)"}
   review                ${reviewStatus}
+  branch                ${branchStatus}
   watch                 ${watchStatus}
   issue                 ${issueStatus}
 `);
