@@ -55,7 +55,7 @@ Support: `keepalive.ts` (wake-lock), `detach.ts` (background run), `notify.ts` (
 
 ### Review panel & watch mode
 
-- `--review-panel` (or `RALPH_REVIEW_LENSES`, default `correctness,security,tests`) replaces the reviewer with `runPanel` (`panel.ts`): read-only per-lens reviewers (`review-lens.md`) write findings, then a synth stage (`review-synth.md`) dedupes them into one `fix(review):` commit.
+- `--review-panel` (or `RALPH_REVIEW_LENSES`, default `correctness,security,tests`) replaces the reviewer with `runPanel` (`panel.ts`): read-only per-lens reviewers (`review-lens.md`) write findings → an adversarial verifier (`review-verify.md`) refutes each finding and writes `verdicts.md` (CONFIRMED/REJECTED, biased to reject when uncertain) → a synth stage (`review-synth.md`) fixes only CONFIRMED defects in one `fix(review):` commit. Each phase prints a styled outcome line (findings count / confirmed-rejected tally / committed-or-clean).
 - `--watch` (ghafk only) → `runWatch` (`watch.ts`): daemon polling open issues labelled `RALPH_WATCH_LABEL` (default `ralph`); `--budget` spans the whole daemon lifetime.
 
 ### Template renderer (most likely to bite you)
