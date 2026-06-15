@@ -2,6 +2,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  dirtyTreeWarning,
+  ensureRalphTmpIgnored,
+  resolveBranch,
+} from "./branch.js";
+import {
   parseFlags,
   printConfig,
   printHelp,
@@ -56,6 +61,18 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
   const packageDir = resolve(here, "..");
   const workspaceDir = resolve(process.env.RALPH_WORKSPACE ?? process.cwd());
 
+  const envBranch = process.env.RALPH_BRANCH?.trim();
+  const branchStrategyArg =
+    flags.branch ??
+    (envBranch === "current" ||
+    envBranch === "branch" ||
+    envBranch === "worktree"
+      ? envBranch
+      : undefined);
+  const branchPrefixArg =
+    flags.branchPrefix ??
+    (process.env.RALPH_BRANCH_PREFIX?.trim() || undefined);
+
   const detachLogPath = flags.detach
     ? (flags.log ??
       join(workspaceDir, ".ralph-tmp", "logs", `detached-${process.pid}.log`))
@@ -87,6 +104,8 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
       watch: flags.watch,
       watchIntervalSec: flags.watchIntervalSec,
       issue: flags.issue,
+      branchStrategy: branchStrategyArg,
+      branchPrefix: branchPrefixArg,
     });
     return;
   }
@@ -137,6 +156,24 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     });
   }
 
+  const resolved = await resolveBranch({
+    workspaceDir,
+    inputs,
+    isTTY: Boolean(process.stdout.isTTY),
+    flagStrategy: branchStrategyArg,
+    flagPrefix: branchPrefixArg,
+  });
+  process.stderr.write(`${resolved.summaryLine}\n`);
+  // Evaluate the dirty-tree warning against the user's tree BEFORE we mutate the
+  // workspace's .gitignore below — otherwise Ralph's own .ralph-tmp/ edit would
+  // make a tracked .gitignore "dirty" and fire a spurious warning on first run.
+  const dirtyWarn = dirtyTreeWarning(workspaceDir, resolved.strategy);
+  if (dirtyWarn) process.stderr.write(`⚠ ${dirtyWarn}\n`);
+
+  ensureRalphTmpIgnored(workspaceDir);
+
+  const effectiveWorkspaceDir = resolved.effectiveWorkspaceDir;
+
   if (flags.watch) {
     if (!cfg.supportsWatch) {
       console.error("--watch is only supported by ralph-ghafk");
@@ -146,7 +183,7 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     await runWatch({
       stages,
       iterations,
-      workspaceDir,
+      workspaceDir: effectiveWorkspaceDir,
       packageDir,
       watchIntervalSec: flags.watchIntervalSec ?? 300,
       watchLabel: process.env.RALPH_WATCH_LABEL?.trim() || "ralph",
@@ -165,7 +202,7 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     stages,
     inputs: inputs ?? "",
     iterations,
-    workspaceDir,
+    workspaceDir: effectiveWorkspaceDir,
     packageDir,
     noKeepAlive: flags.noKeepAlive,
     maxRetries: flags.maxRetries,

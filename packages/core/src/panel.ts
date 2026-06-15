@@ -1,6 +1,6 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, posix } from "node:path";
+import { git } from "./git.js";
 import { executeStage } from "./stage-exec.js";
 import { sleep } from "./pacing.js";
 import type { StageResult } from "./runner.js";
@@ -88,19 +88,6 @@ export type RunPanelOptions = {
    */
   onStage?: (sr: StageResult) => PanelStageControl;
 };
-
-function git(args: string[], workspaceDir: string): string | null {
-  try {
-    // execFileSync (no shell): args are literal — never interpolates runtime data.
-    return execFileSync("git", args, {
-      cwd: workspaceDir,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return null;
-  }
-}
 
 /** Tracked-only worktree dirtiness ("" = clean). Untracked files are ignored. */
 function trackedStatus(workspaceDir: string): string | null {
