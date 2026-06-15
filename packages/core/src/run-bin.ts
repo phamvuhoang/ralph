@@ -125,9 +125,18 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
         ? DEFAULT_LENSES
         : undefined;
 
+  // Resolve the run mode before the --print-config early-return so it reflects
+  // the selected mode. Depends only on flags, not on the guards below.
+  const runMode = flags.verify
+    ? "verify"
+    : flags.applyReview != null
+      ? "review"
+      : cfg.mode;
+
   if (flags.printConfig) {
     printConfig(cfg.bin, workspaceDir, packageDir, {
       cliVersion: cfg.cliVersion,
+      mode: runMode,
       noKeepAlive: flags.noKeepAlive,
       maxRetries: flags.maxRetries,
       detach: flags.detach,
@@ -151,20 +160,57 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     process.exit(1);
   }
 
+  const modeCount =
+    (flags.issue != null ? 1 : 0) +
+    (flags.verify ? 1 : 0) +
+    (flags.applyReview != null ? 1 : 0) +
+    (flags.watch ? 1 : 0);
+  if (modeCount > 1) {
+    console.error(
+      "--issue, --verify, --apply-review, and --watch are mutually exclusive"
+    );
+    process.exit(1);
+  }
+  if (flags.verify && !cfg.verifyStage) {
+    console.error("--verify is only supported by ralph-afk");
+    process.exit(1);
+  }
+  if (flags.applyReview != null && !cfg.applyReviewStage) {
+    console.error("--apply-review is only supported by ralph-afk");
+    process.exit(1);
+  }
+
   const inputs =
     flags.issue != null
       ? String(flags.issue)
+      : flags.applyReview != null
+        ? flags.applyReview
+        : cfg.takesInputArg
+          ? flags.rest[0]
+          : "";
+  // --verify is one-shot (iterations forced to 1 below); --apply-review takes the
+  // doc as its flag value, so the iterations count is the first remaining positional.
+  const iterationsArg =
+    flags.applyReview != null
+      ? flags.rest[0]
       : cfg.takesInputArg
-        ? flags.rest[0]
-        : "";
-  const iterationsArg = cfg.takesInputArg ? flags.rest[1] : flags.rest[0];
-  if ((cfg.takesInputArg && !inputs) || !iterationsArg) {
+        ? flags.rest[1]
+        : flags.rest[0];
+  if (flags.verify && (!cfg.takesInputArg || !inputs)) {
+    console.error(`Usage: ${cfg.bin} --verify "<plan-and-prd>"`);
+    process.exit(1);
+  }
+  if (!flags.verify && ((cfg.takesInputArg && !inputs) || !iterationsArg)) {
     console.error(`Usage: ${cfg.bin} ${cfg.usage}`);
     console.error(`       ${cfg.bin} --help`);
     process.exit(1);
   }
-  const iterations = Number.parseInt(iterationsArg, 10);
-  if (!Number.isFinite(iterations) || iterations < 1) {
+  // --verify is one-shot regardless of any positional count.
+  if (flags.verify && iterationsArg) {
+    console.error("--verify is one-shot; ignoring the iterations argument");
+  }
+  const iterations = flags.verify ? 1 : Number.parseInt(iterationsArg, 10);
+  if (!flags.verify && (!Number.isFinite(iterations) || iterations < 1)) {
     console.error(`Invalid iterations: ${iterationsArg}`);
     process.exit(1);
   }
@@ -179,10 +225,13 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     process.env.RALPH_ISSUE = String(flags.issue);
   }
 
-  const stages =
-    flags.issue != null
-      ? ([cfg.issueStage!, ...cfg.stages.slice(1)] as [Stage, ...Stage[]])
-      : cfg.stages;
+  const stages: [Stage, ...Stage[]] = flags.verify
+    ? [cfg.verifyStage!]
+    : flags.applyReview != null
+      ? [cfg.applyReviewStage!, ...cfg.stages.slice(1)]
+      : flags.issue != null
+        ? [cfg.issueStage!, ...cfg.stages.slice(1)]
+        : cfg.stages;
 
   if (flags.detach && detachLogPath) {
     detachAndExit({
@@ -252,7 +301,7 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     budgetUsd: flags.budget,
     cooldownMs: flags.cooldownMs,
     reviewLenses,
-    mode: cfg.mode,
+    mode: runMode,
     maxWaitMs,
     fresh: flags.fresh,
   });
