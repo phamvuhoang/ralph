@@ -62,15 +62,24 @@ Two resolved directories drive everything (set in `run-bin.ts`, shared by both b
 
 ## Loop topology
 
-Two chains, both first-stage-gated:
+Chains are first-stage-gated. The base two:
 
 ```
 ralph-afk   → [STAGES.implementer,      STAGES.reviewer]   inputs = "<plan-and-prd>"
 ralph-ghafk → [STAGES.ghafkImplementer, STAGES.reviewer]   inputs = ""
 ```
 
+`run-bin.ts` swaps the **gate** stage (index 0) for alternate `ralph-afk`/`ralph-ghafk` modes; the rest of the chain and the whole loop (resilience, `state.json` `mode`, reconcile-against-git) are unchanged:
+
+```
+ralph-ghafk --issue N      → [STAGES.ghafkIssueImplementer, STAGES.reviewer]   inputs = "N"
+ralph-afk --verify         → [STAGES.verifier]                                 inputs = "<plan-and-prd>" (one pass, read-only)
+ralph-afk --apply-review D  → [STAGES.applyReviewImplementer, STAGES.reviewer]  inputs = D (review-doc path)
+```
+
 - **`ralph-afk` is plan/PRD-driven.** Its first positional arg is forwarded verbatim as the `{{ INPUTS }}` tag.
 - **`ralph-ghafk` is GitHub-issue-driven.** No input arg; `inputs = ""` and the issue context is pulled by the template via `gh`.
+- **`--verify`** is one-shot (`iterations` forced to 1, no reviewer) and writes a read-only report to `.ralph-tmp/verify-report.md` — it makes no commits. **`--apply-review`** triages an external review document, fixing one actionable finding per iteration and accumulating deferred ones in the git-tracked `.ralph/review-followups.md`.
 
 **The first stage of a chain is always the gate.** After its stage runs, `loop.ts` checks the captured `result` for the exact literal sentinel:
 
@@ -247,6 +256,10 @@ Full patch spilled to: @spill?:head.diff=`git show HEAD|||No diff body`
 ```
 
 The reviewer reviews only the latest commit; emits `<review>OK</review>` / `<review>SKIP</review>` and stops, or fixes defects and commits a new `fix(review): …` (never amends).
+
+**[`verify.md`](../packages/core/templates/verify.md)** (`ralph-afk --verify`) — read-only gate: reconciles the plan against git + working tree, runs the suites, classifies each task done/gap/deferred, and writes a report to `.ralph-tmp/verify-report.md`. Makes no commits.
+
+**[`apply-review.md`](../packages/core/templates/apply-review.md)** (`ralph-afk --apply-review <doc>`) — gate that triages an external code-review document, fixing one actionable finding per iteration (`fix(review):`), recording deferred findings in the git-tracked `.ralph/review-followups.md`, and emitting the sentinel when none remain.
 
 ---
 
