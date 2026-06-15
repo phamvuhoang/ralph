@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.11.0...ralph-core-v0.12.0) (2026-06-15)
+
+
+### Features
+
+* **core:** --max-wait / --fresh flags + mode wiring + state.json gitignore ([6b9b67f](https://github.com/phamvuhoang/ralph/commit/6b9b67f83c2abe09b1e34de36e5b5255e5d695b4))
+* **core:** advisory run-state read/write/match (.ralph/state.json) ([bacad78](https://github.com/phamvuhoang/ralph/commit/bacad78acd59fc40058ea42e526254f4ed14b099))
+* **core:** rate-limit detection helpers + RateLimitError ([aa7966d](https://github.com/phamvuhoang/ralph/commit/aa7966d5fe04e521620b96bbd670d9326ea623fd))
+* **core:** RESUME prompt slot + reconcile-before-selecting playbook ([18e39be](https://github.com/phamvuhoang/ralph/commit/18e39bea79c0c5191a9ff63951fbf22fe3017f9b))
+* **core:** runner throws RateLimitError on session/rate limit ([14a2e75](https://github.com/phamvuhoang/ralph/commit/14a2e75e742383ee8cefeaf67c517ff5a3c4a4de))
+* **core:** wait-out rate limits + resume from state.json in the loop ([87f9c29](https://github.com/phamvuhoang/ralph/commit/87f9c297b2ce43cc22184f0429d4f3f265c4655c))
+* **core:** withRetries rethrows RateLimitError without retrying ([0314ce9](https://github.com/phamvuhoang/ralph/commit/0314ce98abe8b4ec141b61e2da8cccec4d4165c2))
+* resilient AFK loops — wait out rate limits + resume interrupted runs ([cb28b58](https://github.com/phamvuhoang/ralph/commit/cb28b583b1f4578bcfb3a6abcbffeb0300d0a284))
+
 ## [0.11.0](https://github.com/phamvuhoang/ralph/compare/ralph-core-v0.10.0...ralph-core-v0.11.0) (2026-06-15)
 
 
