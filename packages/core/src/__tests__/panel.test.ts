@@ -37,13 +37,23 @@ describe("runPanel", () => {
 
   it("runs each lens, then adversarial verify, then synth; reports each sub-agent, returns synth", async () => {
     mocks.executeStage.mockImplementation(
-      (opts: { stage: { template: string }; vars: { LENS?: string } }) => {
+      (opts: {
+        stage: { template: string };
+        vars: { LENS?: string; FINDINGS_DIR?: string };
+      }) => {
         if (opts.stage.template === "review-synth.md")
           return Promise.resolve(ok("<review>OK</review>", 0.5));
-        if (opts.stage.template === "review-verify.md")
+        if (opts.stage.template === "review-verify.md") {
+          // The verifier satisfies its contract: it writes verdicts.md.
+          writeFileSync(
+            join(ws, opts.vars.FINDINGS_DIR!, "verdicts.md"),
+            "REJECTED — a.ts:1 — nit — not a real defect\n",
+            "utf8"
+          );
           return Promise.resolve(
             ok("<verify>0 confirmed, 1 rejected</verify>", 0.2)
           );
+        }
         return Promise.resolve(ok(`finding for ${opts.vars.LENS}`, 0.1));
       }
     );
@@ -130,6 +140,89 @@ describe("runPanel", () => {
     );
     expect(templates).toEqual(["review-lens.md", "review-verify.md"]); // no synth
     expect(out.result).toBe("verdicts");
+  });
+
+  it("skips synth when the verifier writes no verdicts.md (contract violation)", async () => {
+    // No verify mock writes verdicts.md → the contract is unmet.
+    mocks.executeStage.mockResolvedValue(ok("finding"));
+    const out = await runPanel({
+      lenses: ["correctness"],
+      workspaceDir: ws,
+      packageDir: "/pkg",
+      iteration: 1,
+      maxRetries: 0,
+      cooldownMs: 0,
+      onStage: noStop,
+    });
+    const templates = mocks.executeStage.mock.calls.map(
+      (c: [{ stage: { template: string } }]) => c[0].stage.template
+    );
+    expect(templates).toEqual(["review-lens.md", "review-verify.md"]); // synth skipped
+    expect(out.result).toBe("finding"); // returns the verify result, not a synth result
+    const err = (
+      process.stderr.write as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls
+      .map((c) => String(c[0]))
+      .join("");
+    expect(err).toContain("no validated verdicts");
+  });
+
+  it("reports a dirty worktree when synth edits but does not commit", async () => {
+    const g = (...args: string[]) =>
+      execFileSync("git", args, {
+        cwd: ws,
+        stdio: ["ignore", "pipe", "ignore"],
+        encoding: "utf8",
+      });
+    g("init", "-q");
+    writeFileSync(join(ws, ".gitignore"), ".ralph-tmp/\n");
+    writeFileSync(join(ws, "f.txt"), "orig\n");
+    g("add", ".gitignore", "f.txt");
+    g(
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "user.name=t",
+      "commit",
+      "-q",
+      "-m",
+      "impl"
+    );
+
+    mocks.executeStage.mockImplementation(
+      (opts: {
+        stage: { template: string };
+        vars: { FINDINGS_DIR?: string };
+      }) => {
+        if (opts.stage.template === "review-verify.md")
+          writeFileSync(
+            join(ws, opts.vars.FINDINGS_DIR!, "verdicts.md"),
+            "CONFIRMED — f.txt:1 — bug — real\n",
+            "utf8"
+          );
+        if (opts.stage.template === "review-synth.md")
+          // synth edits a tracked file but never commits.
+          writeFileSync(join(ws, "f.txt"), "half-applied fix\n", "utf8");
+        return Promise.resolve(ok("finding"));
+      }
+    );
+
+    await runPanel({
+      lenses: ["correctness"],
+      workspaceDir: ws,
+      packageDir: "/pkg",
+      iteration: 1,
+      maxRetries: 0,
+      cooldownMs: 0,
+      onStage: noStop,
+    });
+
+    const err = (
+      process.stderr.write as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls
+      .map((c) => String(c[0]))
+      .join("");
+    expect(err).toContain("did not commit");
   });
 
   it("applies the adaptive cooldown factor from onStage to the inter-lens sleep", async () => {

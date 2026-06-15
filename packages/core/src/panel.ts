@@ -28,9 +28,10 @@ function phaseLine(label: string): void {
     `${bold(SYM.bullet)} ${bold("review")} ${dim(`· ${label}`)}\n`
   );
 }
-/** Phase outcome line: `  ⎿ ✓ <note>`. */
-function outcomeLine(note: string): void {
-  process.stderr.write(`${dim(SYM.cont)} ${green(SYM.check)} ${dim(note)}\n`);
+/** Phase outcome line: `  ⎿ ✓ <note>` (ok) or `  ⎿ ✗ <note>` (anomaly). */
+function outcomeLine(note: string, ok = true): void {
+  const mark = ok ? green(SYM.check) : red(SYM.cross);
+  process.stderr.write(`${dim(SYM.cont)} ${mark} ${dim(note)}\n`);
 }
 
 /** Human count of a lens's findings from its free-form output ("skip" = no commit to review). */
@@ -45,18 +46,28 @@ function findingsNote(result: string): string {
   return `${n} finding${n === 1 ? "" : "s"}`;
 }
 
-/** CONFIRMED/REJECTED tallies from the verifier's verdicts.md (absent file = 0/0). */
-function verdictNote(panelHostDir: string): string {
-  let confirmed = 0;
-  let rejected = 0;
+/** The verifier's verdicts.md, parsed. `exists` distinguishes "contract met" from
+ *  "verifier never wrote the file" — the counts are display-only (the synth agent,
+ *  not this regex, is the authority on what counts as CONFIRMED). */
+type Verdicts = { exists: boolean; confirmed: number; rejected: number };
+function readVerdicts(panelHostDir: string): Verdicts {
   try {
     const txt = readFileSync(join(panelHostDir, "verdicts.md"), "utf8");
-    confirmed = (txt.match(/^\s*CONFIRMED\b/gim) || []).length;
-    rejected = (txt.match(/^\s*REJECTED\b/gim) || []).length;
+    return {
+      exists: true,
+      confirmed: (txt.match(/^\s*CONFIRMED\b/gim) || []).length,
+      rejected: (txt.match(/^\s*REJECTED\b/gim) || []).length,
+    };
   } catch {
-    // verifier wrote no file (e.g. nothing to verify) — report zero.
+    return { exists: false, confirmed: 0, rejected: 0 };
   }
-  return `${confirmed} confirmed, ${rejected} rejected`;
+}
+
+/** True if the worktree has uncommitted changes (tracked edits or new untracked
+ *  files), excluding gitignored paths. Null git output (e.g. no repo) = not dirty. */
+function worktreeDirty(workspaceDir: string): boolean {
+  const s = git(["status", "--porcelain"], workspaceDir);
+  return s != null && s !== "";
 }
 
 /** Per-sub-agent control returned by the loop: budget-stop + adaptive cooldown. */
@@ -196,10 +207,27 @@ export async function runPanel(opts: RunPanelOptions): Promise<StageResult> {
       logLabel: "verify",
     });
     restoreIfMutated("verify");
-    outcomeLine(verdictNote(panelHostDir));
+    const verdicts = readVerdicts(panelHostDir);
+    if (verdicts.exists) {
+      outcomeLine(
+        `${verdicts.confirmed} confirmed, ${verdicts.rejected} rejected`
+      );
+    } else {
+      outcomeLine("verifier wrote no verdicts.md (contract violation)", false);
+    }
 
     const vctrl = onStage?.(verify) ?? { stop: false, cooldownFactor: 1 };
     if (vctrl.stop) return verify; // budget exhausted — skip synth
+
+    // Contract gate: the verifier MUST write verdicts.md (the template emits
+    // `none` when there were no findings). Its absence means synth would run
+    // with no validated input — so skip the fix stage rather than let synth
+    // patch from unverified findings. Forward progress is preserved: the
+    // implementer's commit stands, just unreviewed this iteration.
+    if (!verdicts.exists) {
+      outcomeLine("skipping synth — no validated verdicts to act on", false);
+      return verify;
+    }
     if (cooldownMs > 0) await sleep(cooldownMs * vctrl.cooldownFactor, signal);
 
     // 3. Synth — fix only CONFIRMED findings in one fix(review:) commit.
@@ -214,13 +242,29 @@ export async function runPanel(opts: RunPanelOptions): Promise<StageResult> {
       signal,
       logLabel: "synth",
     });
+    // Report from real signals: HEAD movement AND worktree cleanliness. A bare
+    // HEAD check would call an edit-without-commit (or a `commit -am` that missed
+    // a new file) "clean" — surface the dirty tree instead of hiding it.
     const after = git(["rev-parse", "HEAD"], workspaceDir);
     const committed = baseHead != null && after != null && after !== baseHead;
-    outcomeLine(
-      committed
-        ? `committed: ${git(["log", "-1", "--pretty=%s"], workspaceDir) ?? "fix(review)"}`
-        : "clean — no fix needed"
-    );
+    const dirty = worktreeDirty(workspaceDir);
+    const subject =
+      git(["log", "-1", "--pretty=%s"], workspaceDir) ?? "fix(review)";
+    if (committed && !dirty) {
+      outcomeLine(`committed: ${subject}`);
+    } else if (committed && dirty) {
+      outcomeLine(
+        `committed: ${subject} — but uncommitted changes remain`,
+        false
+      );
+    } else if (dirty) {
+      outcomeLine(
+        "synth edited the worktree but did not commit — left dirty",
+        false
+      );
+    } else {
+      outcomeLine("clean — no fix needed");
+    }
     onStage?.(synth);
     return synth;
   } finally {
