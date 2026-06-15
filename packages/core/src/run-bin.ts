@@ -38,6 +38,10 @@ export type RunBinConfig = {
   supportsWatch?: boolean;
   /** Alternate gate stage used when --issue is set. Only ralph-ghafk sets this. */
   issueStage?: Stage;
+  /** Single read-only gate stage used when --verify is set. Only ralph-afk sets this. */
+  verifyStage?: Stage;
+  /** Gate stage used when --apply-review is set. Only ralph-afk sets this. */
+  applyReviewStage?: Stage;
   /** Run mode identifier threaded into runLoop state (e.g. "afk" / "ghafk"). */
   mode: string;
 };
