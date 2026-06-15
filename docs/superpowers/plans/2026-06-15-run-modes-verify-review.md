@@ -255,12 +255,11 @@ git commit -m "feat(core): verify + apply-review playbook templates"
 - [ ] **Step 3: Wire them in `main.ts`** (the `runAfk` config object):
 
 ```ts
-    issueStage: undefined,
     verifyStage: STAGES.verifier,
     applyReviewStage: STAGES.applyReviewImplementer,
 ```
 
-(Add the two lines; `ralph-afk` has no `issueStage` — only add `verifyStage`/`applyReviewStage`. Do NOT touch `gh-main.ts`; ghafk gets neither mode.)
+(Add only these two lines. `ralph-afk` has no `issueStage` and `RunBinConfig.issueStage` is optional, so leave it unset — do NOT add `issueStage: undefined`. Do NOT touch `gh-main.ts`; ghafk gets neither mode.)
 
 - [ ] **Step 4: Typecheck + commit**
 
@@ -448,12 +447,17 @@ if (!flags.verify && ((cfg.takesInputArg && !inputs) || !iterationsArg)) {
   process.exit(1);
 }
 // --verify is one-shot regardless of any positional count.
+if (flags.verify && iterationsArg) {
+  console.error("--verify is one-shot; ignoring the iterations argument");
+}
 const iterations = flags.verify ? 1 : Number.parseInt(iterationsArg, 10);
 if (!flags.verify && (!Number.isFinite(iterations) || iterations < 1)) {
   console.error(`Invalid iterations: ${iterationsArg}`);
   process.exit(1);
 }
 ```
+
+(The spec's Part A requires this one-line notice when a count is passed to `--verify`; `console.error` goes to stderr, leaving stdout clean for `--print-config` consumers.)
 
 - [ ] **Step 4: Stage chain swap.** Replace the existing `const stages = flags.issue != null ? (...) : cfg.stages;` with:
 
@@ -467,7 +471,11 @@ const stages: [Stage, ...Stage[]] = flags.verify
       : cfg.stages;
 ```
 
-- [ ] **Step 5: Mode string for runLoop + print-config.** Add near the top (after the guards):
+- [ ] **Step 5: Mode string for runLoop + print-config.**
+
+> ⚠️ ORDERING — read before editing. In the current `run-bin.ts`, `printConfig(...)` is called inside an **early-return block** (`if (flags.printConfig) { printConfig(...); return; }`) that sits **above** the `--issue` guard where Step 1's guards are added. `runMode` therefore must be declared **before** that `printConfig` block — declaring it "after the guards" (its old wording) would reference a block-scoped `const` before its declaration (TS2448/TS2454 + a TDZ ReferenceError), failing the Step 7 typecheck and making `--verify --print-config` unable to ever print `mode verify`. `runMode` reads only `flags`, so computing it early is safe.
+
+Declare `runMode` immediately after the `--version`/`--help` early-returns and **before** the `if (flags.printConfig)` block:
 
 ```ts
 const runMode = flags.verify
@@ -477,7 +485,11 @@ const runMode = flags.verify
     : cfg.mode;
 ```
 
-In the `printConfig(...)` options object add `mode: runMode,`. In the `runLoop({ ... })` call, change `mode: cfg.mode,` to `mode: runMode,`.
+Then add `mode: runMode,` to the **existing** `printConfig(...)` options object (the call inside the `if (flags.printConfig)` block), and in the `runLoop({ ... })` call change `mode: cfg.mode,` to `mode: runMode,`.
+
+Note: the mutual-exclusion + capability guards (Step 1) stay where they are, after `printConfig` — consistent with the existing `--issue` capability guard. A consequence (acceptable, matching today's `--issue` behavior): `--print-config` reports the resolved `runMode` without first rejecting an invalid combo, e.g. `ralph-ghafk --verify --print-config` prints `mode verify` then returns. The guards still fire on a real run.
+
+Also note `--verify --review-panel` is silently inert, not an error: the verify chain has no `reviewer` stage, so `usePanel` (`loop.ts`, gated on `stage.name === "reviewer"`) never fires. Leave it un-rejected — harmless, and rejecting it is out of scope.
 
 - [ ] **Step 6: Guard `--issue`-only env set.** The existing `if (flags.issue != null) { ... process.env.RALPH_ISSUE = ... }` block is unchanged and only runs for issue mode. Leave it.
 
@@ -513,7 +525,7 @@ git commit -m "feat(core): wire --verify / --apply-review modes into run-bin"
 
 - Modify: `README.md`, `docs/ARCHITECTURE.md`
 
-- [ ] **Step 1: README** — add `--verify` and `--apply-review <doc>` to the flags table; a short "Verify & apply-review modes" subsection: `--verify` reconciles the plan against git + runs suites + writes a read-only report to `.ralph-tmp/verify-report.md` (no commits, one pass); `--apply-review <doc>` fixes actionable review findings one per iteration, records deferred ones in `.ralph/review-followups.md`, skips cosmetics; note both are `ralph-afk`-only and distinct from `--review-panel`.
+- [ ] **Step 1: README** — add `--verify` and `--apply-review <doc>` to the flags table; a short "Verify & apply-review modes" subsection: `--verify` reconciles the plan against git + runs suites + writes a report to `.ralph-tmp/verify-report.md` (one pass); `--apply-review <doc>` fixes actionable review findings one per iteration, records deferred ones in `.ralph/review-followups.md`, skips cosmetics; note both are `ralph-afk`-only and distinct from `--review-panel`. **Word the verify "read-only" claim honestly:** verify's no-commits/no-edits guarantee is enforced by the playbook prompt, not by the driver — every stage still runs `bypassPermissions` and the sandbox confines writes to the workspace (which _is_ the repo). Describe it as "verify is instructed not to commit," not "verify cannot commit."
 
 - [ ] **Step 2: ARCHITECTURE.md** — in the loop-topology section add the two new chains:
 
@@ -541,3 +553,13 @@ git commit -m "docs: document --verify and --apply-review modes"
 - **`Stage` import in run-bin:** the `stages` annotation uses `Stage` — already imported in `run-bin.ts` (`import type { Stage }`).
 - **No loop/runner/render change:** confirmed; modes ride the existing render→runStage path and the resilience layer.
 - **Verify report path:** templates use a fixed `.ralph-tmp/verify-report.md` (gitignored) rather than a timestamped name, to keep the agent's `Write` target static and the smoke deterministic; the spec's `<timestamp>` was illustrative. If concurrent verify runs ever matter, revisit — out of scope now.
+
+## Review findings folded in (2026-06-15, against published `feat/resilient-loops` code)
+
+- **[blocking] `runMode` ordering (T4 Step 5):** `printConfig` is called in an early-return block above where the guards/`runMode` were placed; declaring `runMode` "after the guards" referenced it before declaration (TS2448/TDZ), breaking typecheck + the `--verify --print-config` smoke. Fixed: `runMode` now computed before the `printConfig` block.
+- **[minor] iterations-ignored notice (T4 Step 3):** spec Part A requires a one-line notice when a count is passed to `--verify`; the plan silently coerced to 1. Added the stderr notice.
+- **[minor] verify "read-only" wording (T5 Step 1):** no-commit is playbook-enforced, not driver-enforced (`bypassPermissions`, sandbox = the repo). README must say "instructed not to commit," not "cannot."
+- **[minor] `main.ts` wiring (T2 Step 3):** dropped the unnecessary `issueStage: undefined` line (optional field, leave unset).
+- **[note, no action] `--verify --review-panel`:** silently inert (verify chain has no `reviewer` stage), not rejected — acceptable, documented in T4 Step 5.
+- **[note, no action] resume note on a verify run:** a resumed `--verify` injects the implementer-flavored `RESUME` note ("prior work is committed — do not redo…") into the read-only verifier. Harmless (re-verifying is cheap + idempotent) and not worth special-casing; flagged for awareness only.
+- **Confirmed against real code:** `loop.ts` passes `{ INPUTS, RESUME }` to every non-panel stage (single-stage `[verifier]` gets both tags); the `s === 0` sentinel check is a no-op fall-through for a gate that never emits it (safe one-shot verify); `Stage` imported in `run-bin.ts`; `.ralph/review-followups.md` stays git-tracked (gitignore only lists the literal `.ralph/state.json`); `--apply-review` doc path flows into `{{ INPUTS }}` as prompt text only (no shell sink → no sanitization needed).
