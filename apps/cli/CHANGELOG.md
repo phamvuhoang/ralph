@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.12](https://github.com/phamvuhoang/ralph/compare/ralph-v0.6.11...ralph-v0.6.12) (2026-06-15)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @phamvuhoang/ralph-core bumped to 0.12.0
+
 ## [0.6.11](https://github.com/phamvuhoang/ralph/compare/ralph-v0.6.10...ralph-v0.6.11) (2026-06-15)
 
 
