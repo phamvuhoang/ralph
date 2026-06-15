@@ -19,8 +19,24 @@ export type CliFlags = {
   watch: boolean;
   watchIntervalSec?: number;
   issue?: number;
+  maxWaitMs?: number;
+  fresh: boolean;
   rest: string[];
 };
+
+/** Parse a duration: bare integer = seconds; suffix s/m/h supported. Throws on invalid. */
+export function parseDurationMs(raw: string): number {
+  const m = raw.trim().match(/^(\d+)(s|m|h)?$/);
+  if (!m) {
+    throw new Error(
+      `--max-wait must be seconds or a duration like 90m / 6h, got: ${JSON.stringify(raw)}`
+    );
+  }
+  const n = Number.parseInt(m[1], 10);
+  const unit = m[2] ?? "s";
+  const factor = unit === "h" ? 3600_000 : unit === "m" ? 60_000 : 1000;
+  return n * factor;
+}
 
 /**
  * Normalize a user-supplied issue reference to a positive integer.
@@ -75,6 +91,9 @@ export function parseFlags(argv: string[]): CliFlags {
   let expectingWatchInterval = false;
   let issue: number | undefined;
   let expectingIssue = false;
+  let maxWaitMs: number | undefined;
+  let expectingMaxWait = false;
+  let fresh = false;
   const rest: string[] = [];
   for (const a of argv) {
     if (expectingMaxRetries) {
@@ -128,6 +147,11 @@ export function parseFlags(argv: string[]): CliFlags {
       expectingIssue = false;
       continue;
     }
+    if (expectingMaxWait) {
+      maxWaitMs = parseDurationMs(a);
+      expectingMaxWait = false;
+      continue;
+    }
     if (a === "-h" || a === "--help") help = true;
     else if (a === "-V" || a === "--version") version = true;
     else if (a === "--print-config") printConfig = true;
@@ -142,6 +166,8 @@ export function parseFlags(argv: string[]): CliFlags {
     else if (a === "--watch") watch = true;
     else if (a === "--watch-interval") expectingWatchInterval = true;
     else if (a === "--issue") expectingIssue = true;
+    else if (a === "--max-wait") expectingMaxWait = true;
+    else if (a === "--fresh") fresh = true;
     else rest.push(a);
   }
   if (expectingMaxRetries) {
@@ -162,6 +188,9 @@ export function parseFlags(argv: string[]): CliFlags {
   if (expectingIssue) {
     throw new Error("--issue requires a value");
   }
+  if (expectingMaxWait) {
+    throw new Error("--max-wait requires a value");
+  }
   if (log !== undefined && !detach) {
     throw new Error("--log is only meaningful with --detach");
   }
@@ -180,6 +209,8 @@ export function parseFlags(argv: string[]): CliFlags {
     watch,
     watchIntervalSec,
     issue,
+    maxWaitMs,
+    fresh,
     rest,
   };
 }
@@ -237,6 +268,8 @@ Flags:
   --watch             poll for labelled GitHub issues and run the loop whenever work is found (ghafk-only; default: off)
   --watch-interval <sec>  seconds between polls in watch mode (default: 300)
   --issue <ref>       target a single GitHub issue (number, #N, owner/repo#N, or issue URL); loop exits when it is done (ghafk-only; default: off)
+  --max-wait <dur>    cap the wait when rate-limited before halting (e.g. 90m, 6h; default 6h)
+  --fresh             ignore any saved resume state and start from iteration 1
 
 Environment variables:
   RALPH_WORKSPACE   host dir Claude runs against (default: cwd)
@@ -250,6 +283,7 @@ Environment variables:
   RALPH_RESULT_GRACE_MS  post-result grace timer ms (default 30000; 0 disables).
   RALPH_REVIEW_LENSES   comma-separated lens list for --review-panel (default: correctness,security,tests).
   RALPH_WATCH_LABEL     issue label to poll for in watch mode (default: "ralph").
+  RALPH_MAX_WAIT        default rate-limit wait cap (seconds or 90m/6h; default 6h).
 `);
 }
 
@@ -267,6 +301,7 @@ export type PrintConfigOptions = {
   watch?: boolean;
   watchIntervalSec?: number;
   issue?: number;
+  maxWaitMs?: number;
 };
 
 export function printConfig(
@@ -288,6 +323,7 @@ export function printConfig(
     watch = false,
     watchIntervalSec,
     issue,
+    maxWaitMs,
   } = opts;
   const core = readCoreVersion();
   const cli = cliVersion ?? "?";
@@ -336,6 +372,7 @@ export function printConfig(
   notify                ${notifyStatus}
   budget                ${budgetStatus}
   cooldown              ${cooldownStatus}
+  max-wait              ${maxWaitMs != null ? `${Math.round(maxWaitMs / 60000)}m` : "6h (default)"}
   review                ${reviewStatus}
   watch                 ${watchStatus}
   issue                 ${issueStatus}

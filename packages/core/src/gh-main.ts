@@ -16,5 +16,6 @@ export async function runGhAfk(
     cliVersion: opts.cliVersion,
     supportsWatch: true,
     issueStage: STAGES.ghafkIssueImplementer,
+    mode: "ghafk",
   });
 }
