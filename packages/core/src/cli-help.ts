@@ -302,6 +302,8 @@ export type PrintConfigOptions = {
   watch?: boolean;
   watchIntervalSec?: number;
   issue?: number;
+  branchStrategy?: "current" | "branch" | "worktree";
+  branchPrefix?: string;
 };
 
 export function printConfig(
@@ -323,6 +325,8 @@ export function printConfig(
     watch = false,
     watchIntervalSec,
     issue,
+    branchStrategy,
+    branchPrefix,
   } = opts;
   const core = readCoreVersion();
   const cli = cliVersion ?? "?";
@@ -357,6 +361,7 @@ export function printConfig(
     ? `on (every ${watchIntervalSec ?? 300}s, label "${watchLabel}")`
     : "off";
   const issueStatus = issue != null ? `#${issue}` : "off";
+  const branchStatus = `${branchStrategy ?? "current"} (prefix "${branchPrefix ?? "ralph/"}")`;
 
   process.stdout.write(`[${bin}] resolved config
   version               ${bin} ${cli} (core ${core})
@@ -372,6 +377,7 @@ export function printConfig(
   budget                ${budgetStatus}
   cooldown              ${cooldownStatus}
   review                ${reviewStatus}
+  branch                ${branchStatus}
   watch                 ${watchStatus}
   issue                 ${issueStatus}
 `);
