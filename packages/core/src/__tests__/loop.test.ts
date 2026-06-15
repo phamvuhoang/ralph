@@ -371,4 +371,74 @@ describe("runLoop", () => {
     await loop;
     expect(mocks.runStage).toHaveBeenCalledTimes(2);
   });
+
+  it("waits until reset then retries the same stage on a RateLimitError", async () => {
+    const dirs = makeDirs();
+    roots.push(dirs.root);
+    const { RateLimitError } = await import("../rate-limit.js");
+    const future = Math.floor(Date.now() / 1000) + 600; // +10 min
+    mocks.runStage
+      .mockRejectedValueOnce(new RateLimitError("session limit", future))
+      .mockResolvedValueOnce(ok(sentinel));
+
+    await runLoop(loopOptions(dirs, { mode: "afk", bin: "ralph-afk" }));
+
+    expect(mocks.sleep).toHaveBeenCalled();
+    const waited = Number(mocks.sleep.mock.calls.at(-1)?.[0]);
+    expect(waited).toBeGreaterThan(0);
+    expect(mocks.runStage).toHaveBeenCalledTimes(2);
+  });
+
+  it("halts cleanly when the reset is beyond maxWaitMs", async () => {
+    const dirs = makeDirs();
+    roots.push(dirs.root);
+    const { RateLimitError } = await import("../rate-limit.js");
+    const far = Math.floor(Date.now() / 1000) + 10 * 3600; // +10h
+    mocks.runStage.mockRejectedValue(new RateLimitError("session limit", far));
+
+    const outcome = await runLoop(
+      loopOptions(dirs, {
+        mode: "afk",
+        bin: "ralph-afk",
+        maxWaitMs: 6 * 3600_000,
+      })
+    );
+
+    expect(outcome.sentinelHit).toBe(false);
+    expect(mocks.runStage).toHaveBeenCalledTimes(1);
+    const { readState } = await import("../state.js");
+    expect(readState(dirs.workspaceDir)?.status).toBe("interrupted");
+  });
+
+  it("resumes from the saved iteration when state matches", async () => {
+    const dirs = makeDirs();
+    roots.push(dirs.root);
+    const { writeState } = await import("../state.js");
+    writeState(dirs.workspaceDir, {
+      bin: "ralph-afk",
+      mode: "afk",
+      inputs: "plan",
+      iteration: 3,
+      of: 5,
+      status: "running",
+      startedAt: "x",
+      updatedAt: "x",
+    });
+    mocks.runStage.mockResolvedValue(ok("still working"));
+
+    await runLoop(
+      loopOptions(dirs, { mode: "afk", bin: "ralph-afk", iterations: 5 })
+    );
+
+    expect(mocks.runStage).toHaveBeenCalledTimes(3); // resumed 3→5
+  });
+
+  it("clears state on sentinel completion", async () => {
+    const dirs = makeDirs();
+    roots.push(dirs.root);
+    mocks.runStage.mockResolvedValue(ok(sentinel));
+    await runLoop(loopOptions(dirs, { mode: "afk", bin: "ralph-afk" }));
+    const { readState } = await import("../state.js");
+    expect(readState(dirs.workspaceDir)).toBeNull();
+  });
 });

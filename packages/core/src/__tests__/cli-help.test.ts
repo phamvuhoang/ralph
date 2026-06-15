@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseFlags, parseIssueRef } from "../cli-help.js";
+import { parseFlags, parseIssueRef, parseDurationMs } from "../cli-help.js";
 
 describe("parseIssueRef", () => {
   it("accepts a bare number", () => {
@@ -53,6 +53,33 @@ describe("parseFlags --issue", () => {
   });
   it("throws when --issue value is invalid", () => {
     expect(() => parseFlags(["--issue", "foo", "5"])).toThrow();
+  });
+});
+
+describe("parseDurationMs", () => {
+  it("parses bare seconds", () => expect(parseDurationMs("90")).toBe(90_000));
+  it("parses m/h/s suffixes", () => {
+    expect(parseDurationMs("90m")).toBe(90 * 60_000);
+    expect(parseDurationMs("6h")).toBe(6 * 3600_000);
+    expect(parseDurationMs("45s")).toBe(45_000);
+  });
+  it("throws on garbage", () => expect(() => parseDurationMs("abc")).toThrow());
+});
+
+describe("parseFlags --max-wait / --fresh", () => {
+  it("parses --max-wait and --fresh", () => {
+    const f = parseFlags(["--max-wait", "2h", "--fresh", "5"]);
+    expect(f.maxWaitMs).toBe(2 * 3600_000);
+    expect(f.fresh).toBe(true);
+    expect(f.rest).toEqual(["5"]);
+  });
+  it("errors when --max-wait has no value", () => {
+    expect(() => parseFlags(["--max-wait"])).toThrow(
+      /--max-wait requires a value/
+    );
+  });
+  it("errors on an invalid --max-wait value", () => {
+    expect(() => parseFlags(["--max-wait", "nope"])).toThrow();
   });
 });
 

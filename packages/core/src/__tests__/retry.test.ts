@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { withRetries, backoffFor } from "../retry.js";
+import { RateLimitError } from "../rate-limit.js";
 
 describe("withRetries", () => {
   it("returns on first-attempt success without delay", async () => {
@@ -106,6 +107,18 @@ describe("withRetries", () => {
       withRetries(fn, { max: 3, backoffMs: [1] })
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(fn).toHaveBeenCalledTimes(1); // no retries
+  });
+
+  it("does not retry a RateLimitError (rethrows immediately)", async () => {
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      throw new RateLimitError("limit", 123);
+    };
+    await expect(
+      withRetries(fn, { max: 3, backoffMs: [1, 1, 1], sleep: async () => {} })
+    ).rejects.toBeInstanceOf(RateLimitError);
+    expect(calls).toBe(1);
   });
 });
 

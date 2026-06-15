@@ -4,9 +4,17 @@ import { readCoreVersion } from "./cli-help.js";
 import { acquire, type Releaser } from "./keepalive.js";
 import { notifyComplete, notifyError } from "./notify.js";
 import { sleep, isThrottle, nextCooldownFactor } from "./pacing.js";
+import { RateLimitError, computeWaitMs } from "./rate-limit.js";
 import { DEFAULT_MAX_RETRIES } from "./retry.js";
 import { stageLogPath, type StageResult } from "./runner.js";
 import { executeStage } from "./stage-exec.js";
+import {
+  clearState,
+  matchesResume,
+  readState,
+  writeState,
+  type RunState,
+} from "./state.js";
 import {
   USE_COLOR,
   dim,
@@ -23,6 +31,10 @@ import type { Stage } from "./stages.js";
 // The agent emits this literal when there is no more work; the same string is
 // mirrored in the playbook templates (prompt.md / ghprompt.md) that instruct it.
 const SENTINEL = "<promise>NO MORE TASKS</promise>";
+
+const RATE_LIMIT_BUFFER_MS = 30_000;
+const RATE_LIMIT_FALLBACK_MS = 15 * 60_000;
+const DEFAULT_MAX_WAIT_MS = 6 * 3600_000;
 
 export type LoopOptions = {
   // First stage is the gate: its result is checked for the completion sentinel.
@@ -54,6 +66,12 @@ export type LoopOptions = {
    *  runLoop skips wake-lock acquisition and process signal handler installation;
    *  the caller owns both. */
   signal?: AbortSignal;
+  /** Run mode for state.json identity (e.g. "afk" / "ghafk"). Default "afk". */
+  mode?: string;
+  /** Cap on the rate-limit wait before halting. Default 6h. */
+  maxWaitMs?: number;
+  /** Force a fresh run, ignoring/clearing prior state. Default false. */
+  fresh?: boolean;
 };
 
 export type LoopOutcome = { costUsd: number; sentinelHit: boolean };
@@ -74,6 +92,9 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
     cooldownMs = 0,
     reviewLenses,
     signal: externalSignal,
+    mode = "afk",
+    maxWaitMs = DEFAULT_MAX_WAIT_MS,
+    fresh = false,
   } = opts;
 
   const versionLine = `${bin} ${cliVersion} (core ${readCoreVersion()})`;
@@ -148,8 +169,54 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
     };
   };
 
+  const nowIso = () => new Date().toISOString();
+  if (fresh) clearState(workspaceDir);
+  const prior = fresh ? null : readState(workspaceDir);
+  const resuming = matchesResume(prior, { bin, mode, inputs });
+  const startIteration = resuming ? prior!.iteration : 1;
+  const total = resuming ? prior!.of : iterations;
+  let resumeNote = "";
+  if (resuming) {
+    resumeNote = `Resumed run (iteration ${startIteration} of ${total}). Prior work is committed — reconcile against git history and the working tree before acting; do not redo completed tasks.`;
+    process.stdout.write(
+      `${greenOut(SYM_OUT.bullet)} ${boldOut("resuming")}${dimOut(` from iteration ${startIteration}/${total}`)}\n`
+    );
+  }
+  const persist = (
+    iteration: number,
+    status: RunState["status"],
+    resetsAt?: number | null
+  ): void =>
+    writeState(workspaceDir, {
+      bin,
+      mode,
+      inputs,
+      iteration,
+      of: total,
+      status,
+      resetsAt: resetsAt ?? null,
+      startedAt: prior?.startedAt ?? nowIso(),
+      updatedAt: nowIso(),
+    });
+
+  if (resuming && prior!.status === "waiting-rate-limit") {
+    const waitMs = computeWaitMs(
+      prior!.resetsAt ?? null,
+      Date.now(),
+      RATE_LIMIT_BUFFER_MS,
+      0
+    );
+    if (waitMs > 0 && waitMs <= maxWaitMs) {
+      process.stderr.write(
+        `${dim(`waiting ${Math.round(waitMs / 60000)}m to clear the prior rate limit`)}\n`
+      );
+      await sleep(waitMs, activeSignal);
+    }
+  }
+
   try {
-    for (let i = 1; i <= iterations; i++) {
+    for (let i = startIteration; i <= total; i++) {
+      persist(i, "running");
       for (let s = 0; s < stages.length; s++) {
         const stage = stages[s];
 
@@ -162,19 +229,18 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
         }
 
         const banner = USE_COLOR
-          ? `${dim("━━━")} ${bold(`iteration ${i}/${iterations}`)} ${dim("·")} ${bold(stage.name)} ${dim(`(stage ${s + 1}/${stages.length})`)} ${dim("━━━")}`
-          : `== iteration ${i}/${iterations} · ${stage.name} (stage ${s + 1}/${stages.length}) ==`;
+          ? `${dim("━━━")} ${bold(`iteration ${i}/${total}`)} ${dim("·")} ${bold(stage.name)} ${dim(`(stage ${s + 1}/${stages.length})`)} ${dim("━━━")}`
+          : `== iteration ${i}/${total} · ${stage.name} (stage ${s + 1}/${stages.length}) ==`;
         process.stderr.write(`\n${banner}\n`);
 
         const usePanel =
           reviewLenses && reviewLenses.length > 0 && stage.name === "reviewer";
 
         let sr: StageResult;
-        try {
+        const runOnce = async (): Promise<StageResult> => {
           if (usePanel) {
-            // Lazy import to avoid circular dep and keep the panel opt-in.
             const { runPanel } = await import("./panel.js");
-            sr = await runPanel({
+            return runPanel({
               lenses: reviewLenses!,
               workspaceDir,
               packageDir,
@@ -184,23 +250,54 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
               signal: activeSignal,
               onStage: accountStage,
             });
-          } else {
-            sr = await executeStage({
-              stage,
-              vars: { INPUTS: inputs },
-              workspaceDir,
-              packageDir,
-              iteration: i,
-              maxRetries,
-              signal: activeSignal,
-            });
-            accountStage(sr);
+          }
+          const r = await executeStage({
+            stage,
+            vars: { INPUTS: inputs, RESUME: resumeNote },
+            workspaceDir,
+            packageDir,
+            iteration: i,
+            maxRetries,
+            signal: activeSignal,
+          });
+          accountStage(r);
+          return r;
+        };
+
+        try {
+          for (;;) {
+            try {
+              sr = await runOnce();
+              break;
+            } catch (err) {
+              if ((err as Error)?.name !== "RateLimitError") throw err;
+              const resetsAt = (err as RateLimitError).resetsAt;
+              const waitMs = computeWaitMs(
+                resetsAt,
+                Date.now(),
+                RATE_LIMIT_BUFFER_MS,
+                RATE_LIMIT_FALLBACK_MS
+              );
+              if (waitMs > maxWaitMs) {
+                persist(i, "interrupted", resetsAt);
+                process.stdout.write(
+                  `${red(SYM.cross)} ${bold("rate limit")}${dim(` — reset is beyond --max-wait; halting at iteration ${i}. Re-run to resume.`)}\n`
+                );
+                return { costUsd: runCostUsd, sentinelHit };
+              }
+              persist(i, "waiting-rate-limit", resetsAt);
+              const mins = Math.round(waitMs / 60000);
+              process.stderr.write(
+                `${dim(`⏸ rate limit — waiting ~${mins}m until reset, then resuming`)}\n`
+              );
+              await sleep(waitMs, activeSignal);
+              persist(i, "running");
+            }
           }
         } catch (err) {
           if (activeSignal.aborted) {
             return { costUsd: runCostUsd, sentinelHit };
           }
-          // terminal failure marker — write to the same log path executeStage used.
           const stageLog = stageLogPath(workspaceDir, i, stage.name);
           const failureMarker = `[failure] iteration ${i} stage ${stage.name} failed after ${maxRetries} retries: ${(err as Error).message}`;
           try {
@@ -217,7 +314,7 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
         // non-panel stage above, and once per sub-agent inside runPanel.
 
         if (s === 0) {
-          if (sr.result.includes(SENTINEL)) {
+          if (sr!.result.includes(SENTINEL)) {
             const msg =
               greenOut(SYM_OUT.bullet) +
               " " +
@@ -226,6 +323,8 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
             process.stdout.write(msg + "\n");
             sentinelHit = true;
             completedIterations = i;
+            persist(i, "complete");
+            clearState(workspaceDir);
             return { costUsd: runCostUsd, sentinelHit };
           }
         }
@@ -233,7 +332,7 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
       completedIterations = i;
 
       // Cooldown between iterations.
-      if (cooldownMs > 0 && i < iterations) {
+      if (cooldownMs > 0 && i < total) {
         const wait = cooldownMs * cooldownFactor;
         if (cooldownFactor > 1) {
           process.stderr.write(
@@ -250,9 +349,10 @@ export async function runLoop(opts: LoopOptions): Promise<LoopOutcome> {
     if (onSigint) process.off("SIGINT", onSigint);
     if (onSigterm) process.off("SIGTERM", onSigterm);
     releaseOnce();
-    if (notify && (sentinelHit || completedIterations === iterations)) {
+    if (notify && (sentinelHit || completedIterations === total)) {
       notifyComplete(completedIterations, sentinelHit);
     }
   }
+  clearState(workspaceDir);
   return { costUsd: runCostUsd, sentinelHit };
 }

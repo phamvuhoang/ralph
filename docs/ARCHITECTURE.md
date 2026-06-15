@@ -86,25 +86,27 @@ On a hit the loop prints `Ralph complete` and returns immediately — subsequent
 
 ## Module map
 
-[`../packages/core/src`](../packages/core/src) holds 12 TypeScript modules plus `__tests__/`.
+[`../packages/core/src`](../packages/core/src) holds the following key TypeScript modules plus `__tests__/`.
 
-| Module                                              | Responsibility                                                                                                                                                                                                                                             |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`main.ts`](../packages/core/src/main.ts)           | `runAfk` bin entry: parse flags, resolve dirs, optionally detach, then `runLoop([implementer, reviewer], inputs=planAndPrd)`.                                                                                                                              |
-| [`gh-main.ts`](../packages/core/src/gh-main.ts)     | `runGhAfk` bin entry: same shape, `runLoop([ghafkImplementer, reviewer], inputs="")`.                                                                                                                                                                      |
-| [`loop.ts`](../packages/core/src/loop.ts)           | `runLoop` — iteration driver: wake-lock, signal handlers, per-stage render→runStage with retries, sentinel gate, notify on terminal events.                                                                                                                |
-| [`render.ts`](../packages/core/src/render.ts)       | `renderTemplate` — expand the five tag forms; `resolveShell` picks the host shell for shell/spill tags.                                                                                                                                                    |
-| [`runner.ts`](../packages/core/src/runner.ts)       | Native-sandbox runner: `runStage`, `streamClaude`, sandbox-settings helpers, `stageLogPath`, TTY-gated color exports. Reads `RALPH_RUNNER` / `RALPH_SANDBOX_NET`.                                                                                          |
-| [`stages.ts`](../packages/core/src/stages.ts)       | `STAGES` registry: `implementer` (afk.md), `ghafkImplementer` (ghafk.md), `reviewer` (review.md), all `bypassPermissions`; `Stage` type.                                                                                                                   |
-| [`index.ts`](../packages/core/src/index.ts)         | Public barrel — see exact exports below.                                                                                                                                                                                                                   |
-| [`cli-help.ts`](../packages/core/src/cli-help.ts)   | `parseFlags`, `printHelp`, `printVersion`, `printConfig`, `readCoreVersion`. **Internal** (not exported from `index.ts`).                                                                                                                                  |
-| [`retry.ts`](../packages/core/src/retry.ts)         | `withRetries`, `backoffFor`, `DEFAULT_BACKOFF_MS`, `DEFAULT_MAX_RETRIES`. **Internal.**                                                                                                                                                                    |
-| [`keepalive.ts`](../packages/core/src/keepalive.ts) | `acquire` — OS wake-lock, returns a `Releaser`; per-platform inhibitor. **Internal.**                                                                                                                                                                      |
-| [`detach.ts`](../packages/core/src/detach.ts)       | `detachAndExit`, `stripDetachFlags` — fork loop into background, parent exits 0. **Internal.**                                                                                                                                                             |
-| [`notify.ts`](../packages/core/src/notify.ts)       | `notify`, `notifyComplete`, `notifyError` — OS toast + terminal bell. **Internal.**                                                                                                                                                                        |
-| [`branch.ts`](../packages/core/src/branch.ts)       | `resolveBranchStrategy` — resolves the branch strategy once at startup (precedence: flag/env → `.ralph/config.json` → TTY prompt → `current`) and returns the effective workspace dir the loop runs in (a worktree path in `worktree` mode). **Internal.** |
-| [`git.ts`](../packages/core/src/git.ts)             | Shared low-level git helpers (branch creation, worktree setup, dirty-tree detection). Used by `branch.ts` and `panel.ts`. **Internal.**                                                                                                                    |
-| `__tests__/`                                        | Vitest suites: `detach`, `keepalive`, `loop`, `notify`, `retry`, `runner` (6 files).                                                                                                                                                                       |
+| Module                                                | Responsibility                                                                                                                                                                                                                                             |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`main.ts`](../packages/core/src/main.ts)             | `runAfk` bin entry: parse flags, resolve dirs, optionally detach, then `runLoop([implementer, reviewer], inputs=planAndPrd)`.                                                                                                                              |
+| [`gh-main.ts`](../packages/core/src/gh-main.ts)       | `runGhAfk` bin entry: same shape, `runLoop([ghafkImplementer, reviewer], inputs="")`.                                                                                                                                                                      |
+| [`loop.ts`](../packages/core/src/loop.ts)             | `runLoop` — iteration driver: wake-lock, signal handlers, per-stage render→runStage with retries, sentinel gate, rate-limit wait (capped by `--max-wait`), resume from saved state, notify on terminal events.                                             |
+| [`render.ts`](../packages/core/src/render.ts)         | `renderTemplate` — expand the five tag forms; `resolveShell` picks the host shell for shell/spill tags.                                                                                                                                                    |
+| [`runner.ts`](../packages/core/src/runner.ts)         | Native-sandbox runner: `runStage`, `streamClaude`, sandbox-settings helpers, `stageLogPath`, TTY-gated color exports. Reads `RALPH_RUNNER` / `RALPH_SANDBOX_NET`.                                                                                          |
+| [`stages.ts`](../packages/core/src/stages.ts)         | `STAGES` registry: `implementer` (afk.md), `ghafkImplementer` (ghafk.md), `reviewer` (review.md), all `bypassPermissions`; `Stage` type.                                                                                                                   |
+| [`index.ts`](../packages/core/src/index.ts)           | Public barrel — see exact exports below.                                                                                                                                                                                                                   |
+| [`cli-help.ts`](../packages/core/src/cli-help.ts)     | `parseFlags`, `printHelp`, `printVersion`, `printConfig`, `readCoreVersion`. **Internal** (not exported from `index.ts`).                                                                                                                                  |
+| [`retry.ts`](../packages/core/src/retry.ts)           | `withRetries`, `backoffFor`, `DEFAULT_BACKOFF_MS`, `DEFAULT_MAX_RETRIES`. **Internal.**                                                                                                                                                                    |
+| [`keepalive.ts`](../packages/core/src/keepalive.ts)   | `acquire` — OS wake-lock, returns a `Releaser`; per-platform inhibitor. **Internal.**                                                                                                                                                                      |
+| [`detach.ts`](../packages/core/src/detach.ts)         | `detachAndExit`, `stripDetachFlags` — fork loop into background, parent exits 0. **Internal.**                                                                                                                                                             |
+| [`notify.ts`](../packages/core/src/notify.ts)         | `notify`, `notifyComplete`, `notifyError` — OS toast + terminal bell. **Internal.**                                                                                                                                                                        |
+| [`branch.ts`](../packages/core/src/branch.ts)         | `resolveBranchStrategy` — resolves the branch strategy once at startup (precedence: flag/env → `.ralph/config.json` → TTY prompt → `current`) and returns the effective workspace dir the loop runs in (a worktree path in `worktree` mode). **Internal.** |
+| [`git.ts`](../packages/core/src/git.ts)               | Shared low-level git helpers (branch creation, worktree setup, dirty-tree detection). Used by `branch.ts` and `panel.ts`. **Internal.**                                                                                                                    |
+| [`rate-limit.ts`](../packages/core/src/rate-limit.ts) | Detects Claude rate-limit events from the NDJSON stream; extracts the reset timestamp and throws a `RateLimitError` carrying `resetsAt`. **Internal.**                                                                                                     |
+| [`state.ts`](../packages/core/src/state.ts)           | Reads and writes advisory `.ralph/state.json` (gitignored) — bin, mode, inputs, iteration/total, status, `resetsAt`; `matchesResume` determines whether a saved state matches the current invocation. **Internal.**                                        |
+| `__tests__/`                                          | Vitest suites: `detach`, `keepalive`, `loop`, `notify`, `retry`, `runner` (6 files).                                                                                                                                                                       |
 
 `index.ts` re-exports **exactly**:
 
@@ -172,6 +174,24 @@ Toast backends: Windows BurntToast (fallback `msg.exe`), macOS `osascript displa
 - **SIGTERM** → abort active stage, `notifyError("terminated (SIGTERM)")` if `--notify`, release wake-lock, `process.exit(143)`.
 
 Aborting flows the `stageAbort.signal` into `runStage`; `streamClaude` listens for `abort` and **kills the `claude` child**, rejecting with an `AbortError`. The wake-lock is released through a single `releaseOnce` guard shared by both handlers and the `finally` block, so the inhibitor child is killed exactly once. Handlers are removed via `process.off` in `finally`.
+
+### Rate-limit wait — [`rate-limit.ts`](../packages/core/src/rate-limit.ts) + [`loop.ts`](../packages/core/src/loop.ts)
+
+`rate-limit.ts` monitors the NDJSON stream for Claude session/rate-limit signals and extracts the `resetsAt` timestamp, throwing a `RateLimitError` that `loop.ts` catches between stage attempts.
+
+On catching a `RateLimitError`, `loop.ts`:
+
+1. Prints `⏸ rate limit — waiting ~Nm until reset` and computes the wait duration.
+2. If the wait exceeds `--max-wait` (env `RALPH_MAX_WAIT`, default **6h**; accepts bare seconds or `90m`/`6h` strings), it saves resume state via `state.ts` and halts cleanly instead of waiting indefinitely.
+3. Otherwise it sleeps until `resetsAt`, holding the OS wake-lock (Ctrl-C / SIGTERM still abort), then retries the **same** iteration — no work is skipped.
+
+### Resume state — [`state.ts`](../packages/core/src/state.ts)
+
+`state.ts` reads and writes `.ralph/state.json` (gitignored, created lazily) in the workspace. The file records: bin name, mode, `inputs` string, current iteration, total iterations, status (`running` / `waiting-rate-limit` / `interrupted` / `complete`), and `resetsAt` (when set).
+
+On startup, `loop.ts` calls `matchesResume` to decide whether the saved state matches the current invocation (same bin, mode, and inputs). On a match it resumes from the saved iteration, printing `▶ resuming from iteration N/M`. A mismatch or absent file starts fresh without error. `--fresh` (flag) forces a clean start regardless. State is deleted on normal completion.
+
+**Committed work is never redone.** Resuming is safe because the implementer reconciles against git history and the working tree before selecting a task — plan checkboxes are treated as hints, not truth. Git is the authoritative record of what has been done.
 
 ---
 
@@ -344,13 +364,14 @@ Release/publishing (release-please → tag-driven npm workflows) is the single-s
 
 ## Environment variables
 
-| Variable                 | Default          | Effect                                                                                                                      |
-| ------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `RALPH_WORKSPACE`        | `process.cwd()`  | Host dir Claude runs against (`cwd`); root for `.ralph-tmp/`.                                                               |
-| `RALPH_RUNNER`           | `sandbox`        | `sandbox` — native OS sandbox (Seatbelt on macOS), writes confined to the workspace. `host` — unsandboxed.                  |
-| `RALPH_SANDBOX_NET`      | — (unrestricted) | Comma-separated domain allowlist for sandbox network egress. Unset = unrestricted (filesystem is the blast-radius control). |
-| `RALPH_RESULT_GRACE_MS`  | `30000`          | Post-result kill timer; `0` disables. Invalid/negative → default.                                                           |
-| `RALPH_MODEL`            | — (CLI default)  | `--model <value>` pass-through to `claude` for every stage. Empty/whitespace = unset.                                       |
-| `RALPH_BRANCH`           | — (`current`)    | Branch isolation strategy: `current`, `branch`, or `worktree`. Overrides `.ralph/config.json`; overridden by `--branch`.    |
-| `RALPH_BRANCH_PREFIX`    | `ralph/`         | Prefix for the generated branch/worktree name. Overrides `.ralph/config.json`; overridden by `--branch-prefix`.             |
-| `NO_COLOR` / `TERM=dumb` | —                | Disable ANSI on both streams.                                                                                               |
+| Variable                 | Default          | Effect                                                                                                                                                                            |
+| ------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RALPH_WORKSPACE`        | `process.cwd()`  | Host dir Claude runs against (`cwd`); root for `.ralph-tmp/`.                                                                                                                     |
+| `RALPH_RUNNER`           | `sandbox`        | `sandbox` — native OS sandbox (Seatbelt on macOS), writes confined to the workspace. `host` — unsandboxed.                                                                        |
+| `RALPH_SANDBOX_NET`      | — (unrestricted) | Comma-separated domain allowlist for sandbox network egress. Unset = unrestricted (filesystem is the blast-radius control).                                                       |
+| `RALPH_RESULT_GRACE_MS`  | `30000`          | Post-result kill timer; `0` disables. Invalid/negative → default.                                                                                                                 |
+| `RALPH_MODEL`            | — (CLI default)  | `--model <value>` pass-through to `claude` for every stage. Empty/whitespace = unset.                                                                                             |
+| `RALPH_MAX_WAIT`         | `6h`             | Maximum time to wait for a Claude rate-limit to clear before halting and saving resume state. Accepts bare seconds or duration strings (`90m`, `6h`). Equivalent to `--max-wait`. |
+| `RALPH_BRANCH`           | — (`current`)    | Branch isolation strategy: `current`, `branch`, or `worktree`. Overrides `.ralph/config.json`; overridden by `--branch`.                                                          |
+| `RALPH_BRANCH_PREFIX`    | `ralph/`         | Prefix for the generated branch/worktree name. Overrides `.ralph/config.json`; overridden by `--branch-prefix`.                                                                   |
+| `NO_COLOR` / `TERM=dumb` | —                | Disable ANSI on both streams.                                                                                                                                                     |

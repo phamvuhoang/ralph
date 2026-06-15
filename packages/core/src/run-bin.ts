@@ -1,3 +1,4 @@
+import { existsSync, readFileSync, appendFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +9,7 @@ import {
 } from "./branch.js";
 import {
   parseFlags,
+  parseDurationMs,
   printConfig,
   printHelp,
   printVersion,
@@ -36,7 +38,32 @@ export type RunBinConfig = {
   supportsWatch?: boolean;
   /** Alternate gate stage used when --issue is set. Only ralph-ghafk sets this. */
   issueStage?: Stage;
+  /** Run mode identifier threaded into runLoop state (e.g. "afk" / "ghafk"). */
+  mode: string;
 };
+
+/**
+ * Ensure .ralph/state.json is listed in the workspace .gitignore.
+ * No-op when the workspace has no .git directory (not a git repo).
+ * Kept separate from branch.ts's ensureRalphTmpIgnored: that targets the parent
+ * workspaceDir (.ralph-tmp/), while state.json lives in the effective workspace
+ * (the worktree, in worktree mode) where the loop writes it.
+ */
+function ensureStateGitignored(workspaceDir: string): void {
+  if (!existsSync(join(workspaceDir, ".git"))) return;
+  const gitignorePath = join(workspaceDir, ".gitignore");
+  const entry = ".ralph/state.json";
+  const existing = existsSync(gitignorePath)
+    ? readFileSync(gitignorePath, "utf8")
+    : "";
+  const alreadyPresent = existing
+    .split("\n")
+    .some((line) => line.trim() === entry);
+  if (!alreadyPresent) {
+    const prefix = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
+    appendFileSync(gitignorePath, `${prefix}${entry}\n`, "utf8");
+  }
+}
 
 /**
  * Shared entry for the AFK bins: parse flags, handle --version/--help/--print-config,
@@ -60,6 +87,10 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
   const here = dirname(fileURLToPath(import.meta.url));
   const packageDir = resolve(here, "..");
   const workspaceDir = resolve(process.env.RALPH_WORKSPACE ?? process.cwd());
+
+  const envMaxWait = process.env.RALPH_MAX_WAIT?.trim();
+  const maxWaitMs =
+    flags.maxWaitMs ?? (envMaxWait ? parseDurationMs(envMaxWait) : undefined);
 
   const envBranch = process.env.RALPH_BRANCH?.trim();
   const branchStrategyArg =
@@ -104,6 +135,7 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
       watch: flags.watch,
       watchIntervalSec: flags.watchIntervalSec,
       issue: flags.issue,
+      maxWaitMs,
       branchStrategy: branchStrategyArg,
       branchPrefix: branchPrefixArg,
     });
@@ -173,6 +205,10 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
   ensureRalphTmpIgnored(workspaceDir);
 
   const effectiveWorkspaceDir = resolved.effectiveWorkspaceDir;
+  // state.json is written by the loop into effectiveWorkspaceDir (the worktree in
+  // worktree mode), which differs from the parent workspaceDir that
+  // ensureRalphTmpIgnored targets — so this stays a separate call.
+  ensureStateGitignored(effectiveWorkspaceDir);
 
   if (flags.watch) {
     if (!cfg.supportsWatch) {
@@ -212,5 +248,8 @@ export async function runBin(argv: string[], cfg: RunBinConfig): Promise<void> {
     budgetUsd: flags.budget,
     cooldownMs: flags.cooldownMs,
     reviewLenses,
+    mode: cfg.mode,
+    maxWaitMs,
+    fresh: flags.fresh,
   });
 }

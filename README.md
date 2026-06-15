@@ -275,13 +275,15 @@ No plan/PRD arg — context comes from open GitHub issues.
 
 Both bins are designed to chew through long runs unattended. Five AFK flags wire that up:
 
-| Flag                | Default                                                 | What it does                                                             |
-| ------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `--no-keep-alive`   | off (wake-lock acquired)                                | Skip the OS wake-lock for the loop's lifetime.                           |
-| `--max-retries <N>` | `3`                                                     | Per-stage retry budget on transient failures. `0` restores fail-fast.    |
-| `--detach`          | off                                                     | Fork the loop into a background process, print pid + log path, and exit. |
-| `--log <path>`      | `<workspace>/.ralph-tmp/logs/detached-<parent-pid>.log` | Override the detached log target. Only meaningful with `--detach`.       |
-| `--notify`          | off                                                     | OS toast + terminal bell on loop completion or unrecoverable failure.    |
+| Flag                | Default                                                 | What it does                                                                                                            |
+| ------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `--no-keep-alive`   | off (wake-lock acquired)                                | Skip the OS wake-lock for the loop's lifetime.                                                                          |
+| `--max-retries <N>` | `3`                                                     | Per-stage retry budget on transient failures. `0` restores fail-fast.                                                   |
+| `--detach`          | off                                                     | Fork the loop into a background process, print pid + log path, and exit.                                                |
+| `--log <path>`      | `<workspace>/.ralph-tmp/logs/detached-<parent-pid>.log` | Override the detached log target. Only meaningful with `--detach`.                                                      |
+| `--notify`          | off                                                     | OS toast + terminal bell on loop completion or unrecoverable failure.                                                   |
+| `--max-wait <dur>`  | `6h`                                                    | Maximum time to wait out a Claude rate-limit before halting. Accepts seconds (`90`) or a duration string (`90m`, `6h`). |
+| `--fresh`           | off                                                     | Ignore any saved `.ralph/state.json` and restart from iteration 1.                                                      |
 
 Canonical overnight recipe:
 
@@ -296,6 +298,16 @@ tail -f <workspace>/.ralph-tmp/logs/detached-*.log
 ```
 
 Full per-OS notes (wake-lock mechanism, etc.) live in [`docs/keep-alive.md`](./docs/keep-alive.md).
+
+### Resilience & resume
+
+Ralph is designed to survive the interruptions common in long overnight runs — rate limits and restarts.
+
+**Rate-limit wait.** When Claude hits a session or rate limit, Ralph detects the exact reset time from the stream, prints `⏸ rate limit — waiting ~Nm until reset`, holds the OS wake-lock, and waits until the limit clears (Ctrl-C still works). It then resumes the **same** iteration without skipping work. If the reset is further out than `--max-wait` (default `6h`, accepts `90m`/`6h` or bare seconds), Ralph halts cleanly and saves resume state instead.
+
+**Resume across restarts.** Ralph writes `.ralph/state.json` (gitignored) in the workspace after each iteration, recording the bin, inputs, current iteration, and total. If you re-run the same command, Ralph reads that file and resumes from where it left off, printing `▶ resuming from iteration N/M`. If the saved state doesn't match (different command, fresh clone, or the file is absent), it starts fresh — it never errors. Use `--fresh` to force a clean restart from iteration 1.
+
+**Committed work is never redone.** The implementer reconciles against git history and the working tree before picking a task — plan checkboxes are treated as hints, not truth. So resuming (or even re-running from scratch) will not duplicate already-committed work. State is cleared automatically when the loop completes.
 
 ### Cost control, pacing & review panel
 
@@ -390,6 +402,7 @@ npx -y @phamvuhoang/ralph ralph-afk "<plan-and-prd>" 5
 | `RALPH_RESULT_GRACE_MS`  | `30000`                      | Milliseconds to wait after the final NDJSON `result` event before force-killing a `claude` child that fails to exit on its own. `0` disables the timer. Invalid values fall back to the default.                      |
 | `RALPH_MODEL`            | _(unset → CLI default)_      | Pins the Claude model. When non-empty, `--model <value>` is passed through to the `claude` CLI for every stage. Empty/whitespace = unset. Pass-through: the `claude` CLI owns validation.                             |
 | `RALPH_REVIEW_LENSES`    | `correctness,security,tests` | Comma-separated lens list for the reviewer panel. Setting it implies `--review-panel`.                                                                                                                                |
+| `RALPH_MAX_WAIT`         | `6h`                         | Maximum time to wait out a Claude rate-limit before halting cleanly and saving resume state. Accepts seconds (`90`) or a duration string (`90m`, `6h`). Equivalent to `--max-wait`.                                   |
 | `RALPH_WATCH_LABEL`      | `ralph`                      | Issue label that gates a `--watch` run (`ralph-ghafk`).                                                                                                                                                               |
 | `RALPH_BRANCH`           | _(unset → `current`)_        | Branch isolation strategy: `current`, `branch`, or `worktree`. Overrides `.ralph/config.json`; overridden by `--branch`.                                                                                              |
 | `RALPH_BRANCH_PREFIX`    | `ralph/`                     | Prefix for the generated branch/worktree name. Overrides `.ralph/config.json`; overridden by `--branch-prefix`.                                                                                                       |

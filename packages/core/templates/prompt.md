@@ -26,6 +26,14 @@ TL;DR - build a tiny, end-to-end slice of the feature first, then expand it out.
 4. Polish and quick wins
 5. Refactors
 
+# RECONCILE BEFORE SELECTING
+
+Before picking a task, reconcile the plan against reality. Check recent `git log` and the
+working tree to see which tasks are **already implemented and committed**. Treat plan-file
+checkboxes as hints, NOT truth — code that is present and committed is done even if its box
+is unticked. Skip anything already done. When you complete or confirm a task, flip its
+checkbox as part of your commit so the plan converges to the truth.
+
 # EXPLORATION
 
 Explore the repo.
